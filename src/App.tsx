@@ -32,13 +32,7 @@ const initial: Session = {
   listDone: [],
 }
 
-const readSession = (): Session => {
-  try {
-    return { ...initial, ...JSON.parse(localStorage.getItem('agro-demo-session') || '{}') }
-  } catch {
-    return initial
-  }
-}
+const scenarioCart: Record<string, number> = { milk: 2, bread: 1, cutlets: 1, cheese: 1 }
 
 const routeFromHash = (): { route: Route; id?: string } => {
   const raw = window.location.hash.replace(/^#\/?/, '') || 'home'
@@ -46,6 +40,27 @@ const routeFromHash = (): { route: Route; id?: string } => {
   if (value.startsWith('product:')) return { route: 'catalog', id: value.split(':')[1] }
   const known: Route[] = ['home', 'location', 'catalog', 'cart', 'substitution', 'checkout', 'payment-error', 'success', 'repeat', 'shopping-list', 'loyalty', 'offers', 'profile']
   return known.includes(value as Route) ? { route: value as Route } : { route: 'home' }
+}
+
+const readSession = (): Session => {
+  try {
+    const restored = { ...initial, ...JSON.parse(localStorage.getItem('agro-demo-session') || '{}') } as Session
+    const { route } = routeFromHash()
+    const cartCount = Object.values(restored.cart).reduce((sum, count) => sum + count, 0)
+
+    // Direct links from the case must open a meaningful state, even in a clean browser.
+    if (route === 'substitution' && !restored.cart.cheese) {
+      restored.cart = { ...restored.cart, cheese: 1 }
+      restored.substitution = null
+    }
+    if (['checkout', 'payment-error'].includes(route) && cartCount === 0) {
+      restored.cart = { ...scenarioCart }
+      restored.substitution = 'alt'
+    }
+    return restored
+  } catch {
+    return initial
+  }
 }
 
 const go = (route: string) => {
@@ -83,10 +98,14 @@ export function App() {
   }, [session])
 
   const update = (patch: Partial<Session>) => setSession((current) => ({ ...current, ...patch }))
-  const add = (id: string, amount = 1) => setSession((current) => ({
-    ...current,
-    cart: { ...current.cart, [id]: Math.max(0, (current.cart[id] || 0) + amount) },
-  }))
+  const add = (id: string, amount = 1) => setSession((current) => {
+    const currentCount = current.cart[id] || 0
+    return {
+      ...current,
+      cart: { ...current.cart, [id]: Math.max(0, currentCount + amount) },
+      substitution: id === 'cheese' && amount > 0 && currentCount === 0 ? null : current.substitution,
+    }
+  })
   const cartCount = Object.values(session.cart).reduce((sum, count) => sum + count, 0)
 
   let content: ReactNode
@@ -98,7 +117,7 @@ export function App() {
       case 'cart': content = <CartScreen session={session} add={add} />; break
       case 'substitution': content = <SubstitutionScreen session={session} update={update} />; break
       case 'checkout': content = <CheckoutScreen session={session} update={update} />; break
-      case 'payment-error': content = <PaymentError />; break
+      case 'payment-error': content = <PaymentError session={session} />; break
       case 'success': content = <SuccessScreen session={session} clear={() => update({ cart: {}, substitution: null })} />; break
       case 'repeat': content = <RepeatScreen update={update} />; break
       case 'shopping-list': content = <ShoppingListScreen session={session} update={update} />; break
@@ -144,7 +163,7 @@ function HomeScreen({ session, add }: { session: Session; add: (id: string, amou
     <div className="quick-grid">
       <Quick icon={<RefreshCcw />} label="Повторить" meta="5 позиций" onClick={() => go('repeat')} />
       <Quick icon={<Barcode />} label="Моя карта" meta="1 240 бонусов*" onClick={() => go('loyalty')} />
-      <Quick icon={<ListChecks />} label="Список" meta="3 из 6" onClick={() => go('shopping-list')} />
+      <Quick icon={<ListChecks />} label="Список" meta={`${session.listDone.length} из 6`} onClick={() => go('shopping-list')} />
     </div>
     <SectionTitle title="Купить быстрее" action="В каталог" onClick={() => go('catalog')} />
     <div className="category-tiles">
@@ -187,7 +206,7 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
       </>}
       <div className="context-note"><PackageCheck /><p><b>Сначала контекст — потом каталог</b><br />Цены и наличие будут показаны для выбранного адреса или магазина.</p></div>
     </div>
-    <div className="sticky-action"><button className="button primary full" onClick={() => { update({ fulfillment: mode, city, address: `Демо-адрес · ${address}`, store: selectedStore }); go('catalog') }}>Показать доступный каталог</button></div>
+    <div className="sticky-action"><button className="button primary full" disabled={mode === 'delivery' && !address.trim()} onClick={() => { update({ fulfillment: mode, city, address: `Демо-адрес · ${address.trim()}`, store: selectedStore }); go('catalog') }}>Показать доступный каталог</button></div>
   </div>
 }
 
@@ -224,21 +243,25 @@ function ProductScreen({ product, count, add }: { product: Product; count: numbe
       <div className="fact-grid"><div><b>Состав</b><span>Демонстрационные данные</span></div><div><b>Наличие</b><span>{product.available === false ? 'Нужна замена' : 'Есть в выбранной точке*'}</span></div></div>
       <div className="context-note"><MapPin /><p>Показываем цену и наличие после выбора адреса или магазина. В рабочем продукте данные зависят от интеграций.</p></div>
     </div>
-    <div className="sticky-action">{product.available === false ? <button className="button primary full" onClick={() => { add(product.id); go('substitution') }}>Добавить и выбрать замену</button> : count ? <div className="counter large"><button aria-label="Уменьшить" onClick={() => add(product.id, -1)}><Minus /></button><b>{count} в корзине</b><button aria-label="Увеличить" onClick={() => add(product.id)}><Plus /></button></div> : <button className="button primary full" onClick={() => add(product.id)}>Добавить · {money(product.price)}</button>}</div>
+    <div className="sticky-action">{product.available === false ? <button className="button primary full" onClick={() => { add(product.id); go('cart') }}>Добавить в корзину · нужна замена</button> : count ? <div className="counter large"><button aria-label="Уменьшить" onClick={() => add(product.id, -1)}><Minus /></button><b>{count} в корзине</b><button aria-label="Увеличить" onClick={() => add(product.id)}><Plus /></button></div> : <button className="button primary full" onClick={() => add(product.id)}>Добавить · {money(product.price)}</button>}</div>
   </div>
 }
 
 function CartScreen({ session, add }: { session: Session; add: (id: string, amount?: number) => void }) {
   const items = Object.entries(session.cart).filter(([, count]) => count > 0).map(([id, count]) => ({ product: products.find((p) => p.id === id)!, count })).filter((x) => x.product)
   const total = items.reduce((sum, x) => sum + x.product.price * x.count, 0)
-  const hasMissing = items.some((x) => x.product.available === false) && !session.substitution
+  const hasUnavailable = items.some((x) => x.product.available === false)
+  const hasMissing = hasUnavailable && !session.substitution
+  const substitutionCopy = session.substitution === 'contact'
+    ? 'Сборщик согласует доступный вариант в демо-чате'
+    : 'Сыр полутвёрдый, если основной позиции не будет'
   return <div className="screen cart-screen">
     <Header title="Корзина" action={items.length ? <button className="text-btn" onClick={() => go('catalog')}>Добавить</button> : null} />
     {!items.length ? <div className="empty-state tall"><ShoppingBasket /><h2>Корзина пока пустая</h2><p>Выберите продукты — адрес и параметры получения уже сохранены.</p><button className="button primary" onClick={() => go('catalog')}>Открыть каталог</button></div> : <div className="content-pad">
       <button className="fulfillment-summary" onClick={() => go('location')}><span>{session.fulfillment === 'delivery' ? <Truck /> : <Store />}</span><span><small>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</small><b>{session.fulfillment === 'delivery' ? session.address : session.store}</b></span><ChevronRight /></button>
       <div className="cart-list">{items.map(({ product, count }) => <div className="cart-item" key={product.id}><div className="mini-visual" style={{ background: product.tone }}>{product.glyph}</div><span><b>{product.name}</b><small>{product.detail}</small><strong>{money(product.price * count)}</strong></span><div className="counter"><button aria-label={`Уменьшить ${product.name}`} onClick={() => add(product.id, -1)}><Minus /></button><b>{count}</b><button aria-label={`Увеличить ${product.name}`} onClick={() => add(product.id)}><Plus /></button></div></div>)}</div>
       {hasMissing && <button className="missing-card" onClick={() => go('substitution')}><CircleAlert /><span><b>Для одной позиции нужна замена</b><small>Выберите вариант до оформления</small></span><ChevronRight /></button>}
-      {session.substitution && <div className="resolved-card"><Check /><span><b>Замена согласована</b><small>Сыр полутвёрдый, если основной позиции не будет</small></span><button onClick={() => go('substitution')}>Изменить</button></div>}
+      {hasUnavailable && session.substitution && <div className="resolved-card"><Check /><span><b>Правило замены сохранено</b><small>{substitutionCopy}</small></span><button onClick={() => go('substitution')}>Изменить</button></div>}
       <div className="receipt"><p><span>Товары</span><b>{money(total)}</b></p><p><span>Доставка</span><b>{total >= 1500 ? 'Бесплатно' : 'Рассчитаем'}</b></p><p className="total"><span>Итого, демо</span><b>{money(total)}</b></p></div>
     </div>}
     {items.length > 0 && <div className="sticky-action"><button className="button primary full" disabled={hasMissing} onClick={() => go('checkout')}>{hasMissing ? 'Сначала выберите замену' : `К оформлению · ${money(total)}`}</button></div>}
@@ -259,7 +282,11 @@ function SubstitutionScreen({ session, update }: { session: Session; update: (p:
       <button className={'choice-card ' + (choice === 'skip' ? 'selected' : '')} onClick={() => setChoice('skip')}><span className="choice-icon"><X /></span><span><b>Убрать из заказа</b><small>Остальная корзина сохранится</small></span><span className="radio">{choice === 'skip' && <Check />}</span></button>
       <div className="context-note"><Sparkles /><p>Выбор сохраняется в демосессии и не требует повторно собирать корзину.</p></div>
     </div>
-    <div className="sticky-action"><button className="button primary full" disabled={!choice} onClick={() => { update({ substitution: choice }); go('cart') }}>Сохранить правило замены</button></div>
+    <div className="sticky-action"><button className="button primary full" disabled={!choice} onClick={() => {
+      const cart = choice === 'skip' ? { ...session.cart, cheese: 0 } : session.cart
+      update({ substitution: choice, cart })
+      go('cart')
+    }}>Сохранить правило замены</button></div>
   </div>
 }
 
@@ -282,10 +309,14 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
   </div>
 }
 
-function PaymentError() {
+function PaymentError({ session }: { session: Session }) {
+  const savedCount = session.substitution ? 4 : 3
+  const savedCopy = session.substitution
+    ? 'Корзина, адрес, время и правило замены сохранены.'
+    : 'Корзина, адрес и время сохранены.'
   return <div className="screen status-screen error-screen">
     <Header title="Оплата" />
-    <div className="status-content"><span className="status-icon error"><WifiOff /></span><p className="eyebrow">Демонстрационная ошибка</p><h1>Платёж не завершён</h1><p>Корзина, адрес, время и правило замены сохранены. Можно вернуться без повторного выбора.</p><div className="saved-state"><Check /><span><b>Все 4 параметра сохранены</b><small>Товары · получение · время · замена</small></span></div></div>
+    <div className="status-content"><span className="status-icon error"><WifiOff /></span><p className="eyebrow">Демонстрационная ошибка</p><h1>Платёж не завершён</h1><p>{savedCopy} Можно вернуться без повторного выбора.</p><div className="saved-state"><Check /><span><b>{savedCount} параметра сохранены</b><small>{session.substitution ? 'Товары · получение · время · замена' : 'Товары · получение · время'}</small></span></div></div>
     <div className="sticky-action split"><button className="button primary full" onClick={() => go('success')}>Повторить оплату</button><button className="button secondary full" onClick={() => go('cart')}>Вернуться в корзину</button></div>
   </div>
 }
@@ -323,7 +354,12 @@ function ShoppingListScreen({ session, update }: { session: Session; update: (p:
       <div className="check-list">{list.map((item) => <button key={item} className={session.listDone.includes(item) ? 'done' : ''} onClick={() => toggle(item)}><span className="checkbox">{session.listDone.includes(item) && <Check />}</span><b>{item}</b><Plus /></button>)}</div>
       <button className="store-mode-card" onClick={() => go('location')}><Store /><span><b>Открыть режим магазина</b><small>Выбрать ближайшую точку и сверить список</small></span><ChevronRight /></button>
     </div>
-    <div className="sticky-action"><button className="button primary full" onClick={() => { update({ cart: { ...session.cart, milk: 1, bread: 1, cutlets: 1 } }); go('cart') }}>Добавить доступное в корзину</button></div>
+    <div className="sticky-action"><button className="button primary full" onClick={() => { update({ cart: {
+      ...session.cart,
+      milk: Math.max(1, session.cart.milk || 0),
+      bread: Math.max(1, session.cart.bread || 0),
+      cutlets: Math.max(1, session.cart.cutlets || 0),
+    } }); go('cart') }}>Добавить доступное в корзину</button></div>
   </div>
 }
 

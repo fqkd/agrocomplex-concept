@@ -42,10 +42,10 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
   box-shadow: 0 0 60px rgba(25, 54, 39, .18);
 }
 
-.screen { min-height: 100vh; padding: 30px 0 108px; background: var(--paper); }
+.screen { min-height: 100vh; padding: calc(30px + env(safe-area-inset-top)) 0 108px; background: var(--paper); }
 .screen:has(.sticky-action) { padding-bottom: 118px; }
 .demo-ribbon {
-  height: 30px; position: absolute; inset: 0 0 auto; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: calc(30px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); position: absolute; inset: 0 0 auto; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--green-deep); color: #eef7d9; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
 }
 .app-header {
@@ -110,8 +110,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .category-tile > span { position: absolute; font-size: 62px; right: -3px; bottom: -3px; filter: drop-shadow(0 8px 6px rgba(0,0,0,.12)); }
 .category-tile b { max-width: 95px; font-size: 15px; line-height: 1.1; position: relative; z-index: 2; }
 .category-tile small { margin-top: 6px; font-size: 10px; color: var(--muted); }
-.product-row { display: flex; gap: 10px; padding: 0 18px 5px; overflow-x: auto; scrollbar-width: none; }
-.product-row .product-card { min-width: 150px; }
+.product-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 10px; padding: 0 18px 5px; }
 .fine-print { margin: 15px 18px 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
 
 .product-card { border-radius: 18px; min-width: 0; position: relative; }
@@ -137,7 +136,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .segmented svg { width: 17px; }
 .field-label { display: block; margin: 20px 0 9px; font-size: 12px; font-weight: 750; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.chips.horizontal { flex-wrap: nowrap; overflow-x: auto; padding: 4px 18px 14px; scrollbar-width: none; }
+.chips.horizontal { flex-wrap: wrap; padding: 4px 18px 14px; }
 .chips button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 9px 13px; font-size: 10px; white-space: nowrap; cursor: pointer; }
 .chips button.selected { border-color: var(--green); background: #eaf3df; color: var(--green); font-weight: 700; }
 .input-with-icon { display: grid; grid-template-columns: 28px 1fr; align-items: center; padding: 0 12px; height: 52px; border: 1px solid #dce3d8; border-radius: 15px; background: #fff; }

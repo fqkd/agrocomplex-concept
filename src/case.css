@@ -8,7 +8,7 @@ a { color: inherit; }
 button, a { font: inherit; }
 button:focus-visible, a:focus-visible { outline: 3px solid #a7ce37; outline-offset: 3px; }
 .case-shell { width:100%; height:100%; position:relative; background:var(--cream); }
-.case-scroll { height:100%; overflow-y:auto; scroll-snap-type:y mandatory; scroll-behavior:smooth; }
+.case-scroll { height:100%; overflow-x:hidden; overflow-y:auto; scroll-snap-type:y mandatory; scroll-behavior:smooth; }
 .case-slide { min-height:100svh; scroll-snap-align:start; scroll-snap-stop:always; display:flex; align-items:center; padding:104px 8vw 70px; position:relative; overflow:hidden; background:#fffdf8; }
 .case-slide.cream { background:var(--cream); }.case-slide.green { background:var(--green); color:white; }
 .slide-inner { width:min(1180px,100%); margin:0 auto; position:relative; z-index:2; }
@@ -58,3 +58,19 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a7ce37; outline-offs
 
 @media (max-width:390px) and (max-height:760px){.case-slide{padding-top:76px}.slide-heading h2{font-size:29px}.slide-heading>p{font-size:10px}.research-grid{grid-template-columns:1fr 1fr}.fact-card{min-height:142px}.fact-card p{font-size:8px}.growth-list article{min-height:90px}.idea-center{height:125px}.repeat-visual{min-height:190px}.recover-phone{min-height:250px}.work-track article{min-height:115px}}
 @media (prefers-reduced-motion:reduce){.case-scroll{scroll-behavior:auto}*{transition-duration:.01ms!important}}
+
+/* Keep controls and content clear of device cutouts in standalone/mobile views. */
+.case-topbar{height:calc(72px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}
+.case-progress{top:calc(71px + env(safe-area-inset-top))}
+.case-slide{padding-top:calc(104px + env(safe-area-inset-top));padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+.case-nav{margin-bottom:env(safe-area-inset-bottom)}
+.case-counter{margin-bottom:env(safe-area-inset-bottom)}
+.phone-hero .mock-button{display:inline-flex;border-radius:8px;padding:7px 10px;font-size:7px;font-weight:800;background:#fff;color:#183125}
+.recover-phone .mock-button{width:100%;height:43px;border-radius:13px;background:var(--green);color:white;font-size:10px;font-weight:800;display:grid;place-items:center}
+
+@media (max-width:700px){
+  .case-topbar{height:calc(62px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}
+  .case-progress{top:calc(61px + env(safe-area-inset-top))}
+  .case-slide,.case-slide.cover{padding-top:calc(86px + env(safe-area-inset-top));padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+  .case-slide.next{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+}
