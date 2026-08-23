@@ -109,6 +109,28 @@ async function scenario(name, run) {
   }
 }
 
+await scenario('официальная карта → поиск → выбор → геолокация', async (page) => {
+  await page.context().grantPermissions(['geolocation'], { origin: new URL(base).origin })
+  await page.context().setGeolocation({ latitude: 45.035, longitude: 38.974 })
+  await page.goto(`${base}/#location`, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Самовывоз' }).click()
+  const map = page.locator('.eh-location-picker')
+  await map.getByLabel('Поиск точки').fill('несуществующий магазин')
+  await map.getByText('Ничего не найдено').waitFor()
+  await map.getByLabel('Поиск точки').fill('Красная')
+  await map.locator('.eh-location-list button').first().click()
+  await map.getByRole('button', { name: /Рядом со мной/ }).click()
+  await map.getByText('Расстояния рассчитаны от вашего положения').waitFor()
+  await page.getByRole('button', { name: 'Показать доступный каталог' }).click()
+  await page.locator('.catalog-context small').getByText('Краснодар', { exact: true }).waitFor()
+
+  await page.goto(`${base}/#location`, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Самовывоз' }).click()
+  await page.getByRole('button', { name: `Все ${783} точек` }).click()
+  await page.getByLabel('Поиск точки').fill('Анапа')
+  await page.locator('.eh-location-list button').first().waitFor()
+})
+
 await scenario('контекст → замена → ошибка → восстановление', async (page) => {
   await page.goto(`${base}/#home`, { waitUntil: 'networkidle' })
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })

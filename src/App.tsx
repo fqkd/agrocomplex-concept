@@ -5,6 +5,8 @@ import {
   Minus, PackageCheck, Plus, QrCode, RefreshCcw, Search, ShoppingBasket, ShoppingCart,
   Sparkles, Store, Truck, UserRound, WalletCards, WifiOff, X,
 } from 'lucide-react'
+import { LocationMap } from './LocationMap'
+import { agroStores } from './agroStores'
 import { categoryLabels, money, products, type Product } from './data'
 
 type Route = 'home' | 'location' | 'catalog' | 'cart' | 'substitution' | 'checkout' |
@@ -189,24 +191,37 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
   const [city, setCity] = useState(session.city)
   const [address, setAddress] = useState(session.address.replace('Демо-адрес · ', ''))
   const [selectedStore, setSelectedStore] = useState(session.store)
-  const stores = ['Магазин у дома · 8 мин', 'Фирменный магазин · 14 мин']
+  const cityNeedle = city.toLocaleLowerCase('ru').replace('ё', 'е')
+  const stores = city === 'Все точки'
+    ? agroStores
+    : agroStores.filter((store) => store.address.toLocaleLowerCase('ru').replace('ё', 'е').includes(cityNeedle))
+  const selectedPoint = stores.find((store) => store.address === selectedStore) ?? stores[0]
   return <div className="screen">
     <Header title="Как получите покупки?" />
     <div className="segmented"><button className={mode === 'delivery' ? 'active' : ''} onClick={() => setMode('delivery')}><Truck /> Доставка</button><button className={mode === 'pickup' ? 'active' : ''} onClick={() => setMode('pickup')}><Store /> Самовывоз</button></div>
     <div className="content-pad">
       <label className="field-label">Город</label>
-      <div className="chips">{['Краснодар', 'Ростов-на-Дону', 'Ставрополь'].map((c) => <button key={c} className={city === c ? 'selected' : ''} onClick={() => setCity(c)}>{c}</button>)}</div>
+      <div className="chips">{[
+        ['Краснодар', 'Краснодар'],
+        ['Ростов-на-Дону', 'Ростов-на-Дону'],
+        ['Ставрополь', 'Ставрополь'],
+        ['Все точки', `Все ${agroStores.length} точек`],
+      ].map(([value, label]) => <button key={value} className={city === value ? 'selected' : ''} onClick={() => { setCity(value); setSelectedStore('') }}>{label}</button>)}</div>
       {mode === 'delivery' ? <>
         <label className="field-label" htmlFor="address">Адрес доставки</label>
         <div className="input-with-icon"><MapPin /><input id="address" value={address} onChange={(e) => setAddress(e.target.value)} aria-label="Адрес доставки" /></div>
         <div className="notice"><Clock3 /><span><b>Ближайший интервал</b><small>Сегодня, 18:00–20:00 · демонстрация</small></span></div>
       </> : <>
-        <label className="field-label">Ближайшие магазины</label>
-        {stores.map((store) => <button className={'store-option ' + (selectedStore === store ? 'selected' : '')} key={store} onClick={() => setSelectedStore(store)}><span className="map-dot"><Store /></span><span><b>{store}</b><small>Демо-точка · наличие будет привязано к выбору</small></span>{selectedStore === store && <Check />}</button>)}
+        <LocationMap
+          points={stores}
+          selectedId={selectedPoint?.id ?? ''}
+          onSelect={(store) => setSelectedStore(store.address)}
+          title={`Фирменные магазины · ${stores.length}`}
+        />
       </>}
       <div className="context-note"><PackageCheck /><p><b>Сначала контекст — потом каталог</b><br />Цены и наличие будут показаны для выбранного адреса или магазина.</p></div>
     </div>
-    <div className="sticky-action"><button className="button primary full" disabled={mode === 'delivery' && !address.trim()} onClick={() => { update({ fulfillment: mode, city, address: `Демо-адрес · ${address.trim()}`, store: selectedStore }); go('catalog') }}>Показать доступный каталог</button></div>
+    <div className="sticky-action"><button className="button primary full" disabled={(mode === 'delivery' && !address.trim()) || (mode === 'pickup' && !selectedPoint)} onClick={() => { update({ fulfillment: mode, city: city === 'Все точки' ? (selectedPoint?.city ?? 'Выбранный магазин') : city, address: `Демо-адрес · ${address.trim()}`, store: mode === 'pickup' ? (selectedPoint?.address ?? selectedStore) : selectedStore }); go('catalog') }}>Показать доступный каталог</button></div>
   </div>
 }
 

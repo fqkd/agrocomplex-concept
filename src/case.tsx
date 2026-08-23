@@ -94,8 +94,8 @@ function Idea() {
 }
 
 function Route() {
-  return <Slide id="route" number="04" eyebrow="Ключевой сценарий № 1" title="Путь от адреса до подтверждения не заставляет возвращаться к началу" lead="В прототипе работает полный безопасный сценарий: включая отсутствующий товар, выбор замены и успешное восстановление.">
-    <div className="route-track"><RouteStep n="1" icon={<MapPin />} title="Контекст" text="город, адрес или магазин" /><RouteStep n="2" icon={<ShoppingBasket />} title="Корзина" text="каталог и товары" /><RouteStep n="3" icon={<PackageCheck />} title="Замена" text="правило до оплаты" /><RouteStep n="4" icon={<Truck />} title="Получение" text="способ и время" /><RouteStep n="5" icon={<Check />} title="Результат" text="без реальной отправки" /></div>
+  return <Slide id="route" number="04" eyebrow="Ключевой сценарий № 1" title="Путь от реальной точки до подтверждения не заставляет возвращаться к началу" lead="Интерактивная карта использует 783 точки официального локатора: поиск, синхронный список и ближайшие магазины только после разрешения геолокации.">
+    <div className="route-track"><RouteStep n="1" icon={<MapPin />} title="Карта" text="официальный магазин или адрес" /><RouteStep n="2" icon={<ShoppingBasket />} title="Корзина" text="каталог и товары" /><RouteStep n="3" icon={<PackageCheck />} title="Замена" text="правило до оплаты" /><RouteStep n="4" icon={<Truck />} title="Получение" text="способ и время" /><RouteStep n="5" icon={<Check />} title="Результат" text="без реальной отправки" /></div>
     <div className="scenario-band"><div><span>Что становится проще</span><h3>Пользователь видит, к какой точке относятся цена и наличие</h3></div><a className="case-button dark" href="../#location">Посмотреть сценарий <ArrowRight /></a></div>
   </Slide>
 }
