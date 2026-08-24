@@ -68,12 +68,19 @@ const prototypeRoutes = [
 ]
 const caseSlides = ['cover', 'research', 'growth', 'idea', 'route', 'repeat', 'recover', 'business', 'pilot', 'work', 'next']
 
-for (const width of [360, 390, 430]) {
-  for (const route of prototypeRoutes) await inspect(route, width, width === 430 ? 932 : 844, route === '#home' ? 'prototype' : undefined)
+for (const { width, height } of [
+  { width: 360, height: 800 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) {
+  for (const route of prototypeRoutes) await inspect(route, width, height, route === '#home' ? 'prototype' : undefined)
 }
 for (const route of ['#home', '#catalog', '#payment-error']) await inspect(route, 1440, 900)
-for (const width of [390, 768, 1440]) {
-  const height = width === 390 ? 844 : 1024
+for (const { width, height } of [
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+]) {
   const page = await browser.newPage({ viewport: { width, height } })
   watch(page, `case slides ${width}px`)
   const response = await page.goto(`${base}/case/`, { waitUntil: 'networkidle' })
@@ -189,4 +196,4 @@ if (report.consoleProblems.length || report.overflows.length) {
   throw new Error(`QA не пройден: ${JSON.stringify({ consoleProblems: report.consoleProblems, overflows: report.overflows })}`)
 }
 
-console.log(`QA passed: ${prototypeRoutes.length} routes × 3 mobile widths; desktop; ${caseSlides.length} case slides at 390/768/1440; recovery, deep links, contacts, console and overflow`)
+console.log(`QA passed: ${prototypeRoutes.length} routes at 360x800, 390x844 and 430x932; desktop; ${caseSlides.length} case slides at 1366x768, 1440x900 and 1920x1080; recovery, deep links, contacts, console and overflow`)
