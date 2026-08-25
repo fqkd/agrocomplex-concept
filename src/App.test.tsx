@@ -14,7 +14,7 @@ describe('ключевые сценарии прототипа', () => {
   it('открывает каталог после выбора контекста получения', async () => {
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getByText('Демо-адрес · ул. Солнечная, 12'))
+    await user.click(screen.getByText('ул. Солнечная, 12'))
     await user.click(screen.getByRole('button', { name: 'Показать доступный каталог' }))
     expect(await screen.findByRole('heading', { name: 'Каталог' })).toBeInTheDocument()
   })
@@ -27,7 +27,7 @@ describe('ключевые сценарии прототипа', () => {
     }))
     window.location.hash = '#checkout'
     render(<App />)
-    await user.click(screen.getByRole('button', { name: /Оплатить безопасно/ }))
+    await user.click(screen.getByRole('button', { name: /Перейти к оплате/ }))
     expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1 })
   })
@@ -44,7 +44,7 @@ describe('ключевые сценарии прототипа', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByText('Демо-адрес · ул. Солнечная, 12'))
+    await user.click(screen.getByText('ул. Солнечная, 12'))
     await user.click(screen.getByRole('button', { name: 'Показать доступный каталог' }))
     expect(await screen.findByRole('heading', { name: 'Каталог' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Добавить Молоко 3,2%' }))
@@ -59,11 +59,11 @@ describe('ключевые сценарии прототипа', () => {
     expect(screen.getByText('Правило замены сохранено')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /К оформлению/ }))
     expect(await screen.findByRole('heading', { name: 'Оформление' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Оплатить безопасно/ }))
+    await user.click(screen.getByRole('button', { name: /Перейти к оплате/ }))
     expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1, cheese: 1 })
     await user.click(screen.getByRole('button', { name: 'Повторить оплату' }))
-    expect(await screen.findByText('Демо-заказ подтверждён')).toBeInTheDocument()
+    expect(await screen.findByText('Доставка подтверждена')).toBeInTheDocument()
   })
 
   it('открывает прямую ссылку ошибки с подготовленным демонстрационным состоянием', async () => {
