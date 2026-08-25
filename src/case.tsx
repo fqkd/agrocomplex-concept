@@ -3,9 +3,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   ArrowDown, ArrowRight, BarChart3, Check, ChevronLeft, ChevronRight,
-  CircleAlert, Clock3, CreditCard, Database, Gauge, Layers3, ListChecks, MapPin,
-  PackageCheck, RefreshCcw, Search, ShieldCheck, ShoppingBasket, Smartphone,
-  Sparkles, Store, Truck, UsersRound, Wheat,
+  CircleAlert, Clock3, CreditCard, Database, Drumstick, Gauge, Layers3, ListChecks, MapPin,
+  Milk, PackageCheck, RefreshCcw, Search, ShieldCheck, ShoppingBasket, Smartphone,
+  Soup, Sparkles, Store, Truck, UsersRound, Wheat,
 } from 'lucide-react'
 import './case.css'
 
@@ -74,7 +74,7 @@ function Cover() {
 }
 
 function Research() {
-  return <Slide id="research" number="01" eyebrow="Что изучено" title="Берём только актуальные факты из публичных сервисов" lead="Проверили официальные страницы 11 августа 2026 года. Точный актуальный счётчик фирменных магазинов в доступных материалах не опубликован — поэтому не используем неподтверждённое количество.">
+  return <Slide id="research" number="01" eyebrow="Что изучено" title="Берём только актуальные факты из публичных сервисов" lead="Проверили официальные страницы и выгрузку локатора 23 августа 2026 года. В интерфейсе используется воспроизводимый снимок 783 опубликованных точек.">
     <div className="research-grid"><Fact icon={<Wheat />} metric="1993" title="Создание компании" text="Официальный интернет-магазин называет «Агрокомплекс» одним из крупнейших агропромышленных холдингов России." /><Fact icon={<MapPin />} metric="28" title="Зон доставки" text="На странице доставки перечислены 28 населённых пунктов и территорий; условия зависят от доступной зоны." /><Fact icon={<Truck />} metric="9–22" title="Опубликованные интервалы" text="Доставка ежедневно; последний интервал доступен не во всех городах." /><Fact icon={<Smartphone />} metric="APK" title="Публичная Android-сборка" text="Официальный сайт распространяет приложение напрямую; файл обновлён 5 августа 2025 года." /></div>
     <div className="source-strip"><ShieldCheck /><p><b>Подтверждено:</b> интернет-магазин, курьерская доставка, категории «Наша кухня», собственное производство и программа лояльности. <a href="https://agrokomplexshop.ru/" target="_blank" rel="noreferrer">Официальный сайт</a></p></div>
   </Slide>
@@ -88,13 +88,13 @@ function Growth() {
 
 function Idea() {
   return <Slide id="idea" number="03" eyebrow="Основная идея" title="Один интерфейс для заказа домой и списка в фирменный магазин" lead="Приложение запоминает способ получения, но не смешивает разные контексты наличия.">
-    <div className="idea-map"><div className="idea-center"><span>А</span><b>Моя регулярная покупка</b><small>состояние демосессии</small></div><IdeaNode icon={<MapPin />} title="Адрес или магазин" text="до каталога" pos="one" /><IdeaNode icon={<Search />} title="Каталог точки" text="цена и наличие" pos="two" /><IdeaNode icon={<RefreshCcw />} title="Повтор корзины" text="с перепроверкой" pos="three" /><IdeaNode icon={<ListChecks />} title="Список в магазин" text="отдельный режим" pos="four" /></div>
+    <div className="idea-map"><div className="idea-center"><span>А</span><b>Моя регулярная покупка</b><small>сохранённый контекст</small></div><IdeaNode icon={<MapPin />} title="Адрес или магазин" text="до каталога" pos="one" /><IdeaNode icon={<Search />} title="Каталог точки" text="цена и наличие" pos="two" /><IdeaNode icon={<RefreshCcw />} title="Повтор корзины" text="с перепроверкой" pos="three" /><IdeaNode icon={<ListChecks />} title="Список в магазин" text="отдельный режим" pos="four" /></div>
     <div className="principles"><p><b>Первое действие</b><span>Выбрать контекст покупки</span></p><p><b>Главный приоритет</b><span>Регулярная корзина</span></p><p><b>Состояние</b><span>Сохраняется в сессии</span></p></div>
   </Slide>
 }
 
 function Route() {
-  return <Slide id="route" number="04" eyebrow="Ключевой сценарий № 1" title="Путь от реальной точки до подтверждения не заставляет возвращаться к началу" lead="Интерактивная карта использует 783 точки официального локатора: поиск, синхронный список и ближайшие магазины только после разрешения геолокации.">
+  return <Slide id="route" number="04" eyebrow="Ключевой сценарий № 1" title="Путь от реальной точки до подтверждения не заставляет возвращаться к началу" lead="Интерактивная карта использует 783 точки официального локатора: кластеры сохраняют обзор, поиск синхронизирует карточку и маркер, геолокация запускается только по запросу.">
     <div className="route-track"><RouteStep n="1" icon={<MapPin />} title="Карта" text="официальный магазин или адрес" /><RouteStep n="2" icon={<ShoppingBasket />} title="Корзина" text="каталог и товары" /><RouteStep n="3" icon={<PackageCheck />} title="Замена" text="правило до оплаты" /><RouteStep n="4" icon={<Truck />} title="Получение" text="способ и время" /><RouteStep n="5" icon={<Check />} title="Результат" text="без реальной отправки" /></div>
     <div className="scenario-band"><div><span>Что становится проще</span><h3>Пользователь видит, к какой точке относятся цена и наличие</h3></div><a className="case-button dark" href="../#location">Посмотреть сценарий <ArrowRight /></a></div>
   </Slide>
@@ -102,12 +102,12 @@ function Route() {
 
 function Repeat() {
   return <Slide id="repeat" number="05" eyebrow="Ключевой сценарий № 2" title="Прошлая корзина становится списком с актуальной проверкой" lead="Перед добавлением показываем, что доступно сейчас, где изменилась цена и для какой позиции нужна замена.">
-    <div className="repeat-case"><div className="repeat-visual"><div className="basket-stack"><span>🥛</span><span>🍞</span><span>🍽️</span><span className="missing">🧀<i>!</i></span></div><div className="repeat-arrow"><RefreshCcw /></div><div className="repeat-result"><b>4 доступны</b><span>1 требует решения</span><small>демонстрационный результат</small></div></div><div className="repeat-copy"><h3>Проверяем до добавления</h3><ul><li><Check /> выбранный адрес или магазин</li><li><Check /> текущую доступность позиции</li><li><Check /> цену и количество</li><li><Check /> необходимость замены</li></ul><a className="case-button dark" href="../#repeat">Повторить корзину <ArrowRight /></a></div></div>
+    <div className="repeat-case"><div className="repeat-visual"><div className="basket-stack"><span><Milk /></span><span><Wheat /></span><span><Soup /></span><span className="missing"><Milk /><i>!</i></span></div><div className="repeat-arrow"><RefreshCcw /></div><div className="repeat-result"><b>3 товара доступны</b><span>1 требует решения</span><small>4 товара · 5 единиц</small></div></div><div className="repeat-copy"><h3>Проверяем до добавления</h3><ul><li><Check /> выбранный адрес или магазин</li><li><Check /> текущую доступность позиции</li><li><Check /> цену и количество</li><li><Check /> необходимость замены</li></ul><a className="case-button dark" href="../#repeat">Повторить корзину <ArrowRight /></a></div></div>
   </Slide>
 }
 
 function Recover() {
-  return <Slide id="recover" number="06" eyebrow="Ключевой сценарий № 3" title="Ошибка оплаты не обнуляет уже принятые решения" lead="Демонстрационная ошибка специально встроена в прототип, чтобы показать восстановление без повторного сбора корзины.">
+  return <Slide id="recover" number="06" eyebrow="Ключевой сценарий № 3" title="Ошибка оплаты не обнуляет уже принятые решения" lead="Сценарий недоступности банка показывает восстановление без повторного сбора корзины.">
     <div className="recover-grid"><div className="recover-phone" aria-label="Макет состояния ошибки"><span className="error-symbol"><CircleAlert /></span><h3>Платёж не завершён</h3><p>Корзина, адрес, время и замена сохранены</p><div><Check /> 4 параметра готовы</div><span className="mock-button">Повторить оплату</span></div><div className="saved-flow"><Saved icon={<ShoppingBasket />} title="Товары" /><Saved icon={<MapPin />} title="Адрес" /><Saved icon={<Clock3 />} title="Время" /><Saved icon={<PackageCheck />} title="Замена" /><ArrowDown /><strong>Возврат к оплате</strong></div></div>
     <div className="dual-actions"><a className="case-button dark" href="../#payment-error">Открыть восстановление <ArrowRight /></a><a className="case-button outline" href="../#substitution">Выбрать замену</a></div>
   </Slide>
@@ -137,7 +137,7 @@ function Next() {
   return <section id="next" className="case-slide next green"><div className="slide-inner next-grid"><div><span className="case-kicker">Следующий шаг</span><h2>Покажем прототип лично и вместе выберем границы пилота</h2><p>Предлагаем начать с пилота по регулярной корзине, замене отсутствующего товара, восстановлению оплаты и списку для магазина. На встрече пройдём эти пути и зафиксируем вопросы к внутренним данным.</p><div className="next-actions"><a className="case-button lime" href="mailto:hello@eh.works?subject=Концепция%20приложения%20Агрокомплекс">Обсудить концепцию <ArrowRight /></a><a className="case-button ghost" href="../#home">Открыть прототип</a></div></div><div className="contact-card"><span>ООО «ЭРГОХАВЭН»</span><h3>Аккредитованная ИТ-компания из Краснодара</h3><p>Продуктовая аналитика · UX/UI-дизайн · разработка · интеграции · публикация · обновления · техническая поддержка</p><a href="mailto:hello@eh.works">hello@eh.works</a><a href="https://eh.works" target="_blank" rel="noreferrer">eh.works</a><a href="https://t.me/andrey_ergohaven" target="_blank" rel="noreferrer">Telegram · @andrey_ergohaven</a><a href="https://max.ru/id5041212966_biz" target="_blank" rel="noreferrer">MAX · +7 988 154-04-00</a><small>Можем лично приехать и показать прототип.</small></div></div></section>
 }
 
-function GroceryPhone() { return <div className="grocery-phone" aria-label="Макет главного экрана"><div className="phone-status"><span>9:41</span><span>● ●</span></div><div className="phone-location"><MapPin /><span><small>Доставка · Краснодар</small><b>Демо-адрес · сегодня</b></span></div><div className="phone-hero"><span>Регулярная корзина</span><h3>5 привычных позиций</h3><span className="mock-button">Повторить</span><div>🥛 🍞 🍎</div></div><div className="phone-quick"><p><RefreshCcw /><b>Повторить</b></p><p><ListChecks /><b>Список</b></p><p><Store /><b>Магазин</b></p></div><h4>Своё производство</h4><div className="phone-products"><span>🥛<b>94 ₽*</b></span><span>🍞<b>58 ₽*</b></span></div><small>* демонстрационные цены</small></div> }
+function GroceryPhone() { return <div className="grocery-phone" aria-label="Макет главного экрана"><div className="phone-status"><span>9:41</span><span>● ●</span></div><div className="phone-location"><MapPin /><span><small>Доставка · Краснодар</small><b>ул. Солнечная, 12</b></span></div><div className="phone-hero"><span>Регулярная корзина</span><h3>4 товара · 5 единиц</h3><span className="mock-button">Повторить</span><div><Milk /><Wheat /><Drumstick /></div></div><div className="phone-quick"><p><RefreshCcw /><b>Повторить</b></p><p><ListChecks /><b>Список</b></p><p><Store /><b>Магазин</b></p></div><h4>Своё производство</h4><div className="phone-products"><span><Milk /><b>94 ₽*</b></span><span><Wheat /><b>58 ₽*</b></span></div><small>* концептуальные цены</small></div> }
 function Fact({ icon, metric, title, text }: { icon: ReactNode; metric: string; title: string; text: string }) { return <article className="fact-card"><div>{icon}<strong>{metric}</strong></div><h3>{title}</h3><p>{text}</p></article> }
 function GrowthRow({ n, title, text }: { n: string; title: string; text: string }) { return <article><span>{n}</span><div><h3>{title}</h3><p>{text}</p></div></article> }
 function IdeaNode({ icon, title, text, pos }: { icon: ReactNode; title: string; text: string; pos: string }) { return <div className={`idea-node ${pos}`}><i>{icon}</i><b>{title}</b><small>{text}</small></div> }
