@@ -77,6 +77,7 @@ for (const { width, height } of [
 }
 for (const route of ['#home', '#catalog', '#payment-error']) await inspect(route, 1440, 900)
 for (const { width, height } of [
+  { width: 768, height: 900 },
   { width: 1366, height: 768 },
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
@@ -124,16 +125,22 @@ await scenario('официальная карта → поиск → выбор 
   const map = page.locator('.eh-location-picker')
   await map.getByLabel('Поиск точки').fill('несуществующий магазин')
   await map.getByText('Ничего не найдено').waitFor()
+  await map.getByText('Найдено: 0').waitFor()
+  if (await page.getByRole('button', { name: 'Показать доступный каталог' }).isEnabled()) throw new Error('CTA активна при пустом поиске')
+  await map.getByRole('button', { name: 'Очистить поиск' }).click()
+  await map.getByText(/Найдено: [1-9]/).waitFor()
   await map.getByLabel('Поиск точки').fill('Красная')
   await map.locator('.eh-location-list button').first().click()
+  if (await map.locator('.eh-location-list > button').count() > 60) throw new Error('В DOM больше 60 карточек точек')
+  if (await map.locator('.leaflet-marker-icon').count() > 120) throw new Error('На карте слишком много одновременных маркеров')
   await map.getByRole('button', { name: /Рядом со мной/ }).click()
-  await map.getByText('Расстояния рассчитаны от вашего положения').waitFor()
+  await map.getByText('Список отсортирован по расстоянию').waitFor()
   await page.getByRole('button', { name: 'Показать доступный каталог' }).click()
   await page.locator('.catalog-context small').getByText('Краснодар', { exact: true }).waitFor()
 
   await page.goto(`${base}/#location`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Самовывоз' }).click()
-  await page.getByRole('button', { name: `Все ${783} точек` }).click()
+  await page.getByRole('button', { name: `Все ${783} точки` }).click()
   await page.getByLabel('Поиск точки').fill('Анапа')
   await page.locator('.eh-location-list button').first().waitFor()
 })
@@ -142,7 +149,7 @@ await scenario('контекст → замена → ошибка → восс�
   await page.goto(`${base}/#home`, { waitUntil: 'networkidle' })
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
   await page.reload({ waitUntil: 'networkidle' })
-  await page.getByText('Демо-адрес · ул. Солнечная, 12').click()
+  await page.getByText('ул. Солнечная, 12').click()
   await page.getByRole('button', { name: 'Показать доступный каталог' }).click()
   await page.getByRole('button', { name: 'Добавить Молоко 3,2%' }).click()
   await page.getByRole('button', { name: 'Открыть Сыр сливочный' }).click()
@@ -151,8 +158,8 @@ await scenario('контекст → замена → ошибка → восс�
   await page.getByRole('button', { name: /Заменить на похожий/ }).click()
   await page.getByRole('button', { name: 'Сохранить правило замены' }).click()
   await page.getByRole('button', { name: /К оформлению/ }).click()
-  await page.getByRole('button', { name: /20:00–22:00/ }).click()
-  await page.getByRole('button', { name: /Оплатить безопасно/ }).click()
+  if (await page.getByRole('button', { name: /20:00–22:00/ }).isEnabled()) throw new Error('Недоступный интервал активен')
+  await page.getByRole('button', { name: /Перейти к оплате/ }).click()
   await page.getByRole('heading', { name: 'Платёж не завершён' }).waitFor()
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByText('Товары · получение · время · замена').waitFor()
@@ -160,8 +167,17 @@ await scenario('контекст → замена → ошибка → восс�
   await page.getByText('Правило замены сохранено').waitFor()
   await page.goBack()
   await page.getByRole('button', { name: 'Повторить оплату' }).click()
-  await page.getByRole('heading', { name: 'Демо-заказ подтверждён' }).waitFor()
-  await page.getByText('20:00–22:00').waitFor()
+  await page.getByRole('heading', { name: 'Доставка подтверждена' }).waitFor()
+  await page.getByText('18:00–20:00').waitFor()
+})
+
+await scenario('список покупок → свой товар → отметка → очистка', async (page) => {
+  await page.goto(`${base}/#shopping-list`, { waitUntil: 'networkidle' })
+  await page.getByLabel('Новый товар').fill('Зелень')
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click()
+  await page.getByRole('button', { name: 'Отметить Зелень' }).click()
+  await page.getByRole('button', { name: 'Очистить отмеченное и свои товары' }).click()
+  if (await page.getByText('Зелень').count()) throw new Error('Свой товар не очищен')
 })
 
 await scenario('прямые ссылки сохраняются после обновления', async (page) => {
