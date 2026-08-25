@@ -53,6 +53,13 @@
   font: inherit;
   color: inherit;
 }
+.eh-location-search button { width: 30px; height: 30px; border: 0; border-radius: 9px; display: grid; place-items: center; background: #f2f1ed; color: inherit; }
+.eh-location-search button svg { width: 15px; }
+.eh-search-result { font-size: 12px; color: rgba(20,20,20,.65); }
+.eh-map-cluster-wrap { background: none; border: 0; }
+.eh-map-cluster { width: 52px; height: 52px; display: grid; place-items: center; align-content: center; border-radius: 50%; background: #e7522d; color: #fff; border: 4px solid rgba(255,255,255,.9); box-shadow: 0 6px 18px rgba(0,0,0,.24); line-height: 1; }
+.eh-map-cluster b { font-size: 15px; }
+.eh-map-cluster i { margin-top: 2px; font-size: 8px; font-style: normal; opacity: .8; }
 .eh-geo-status,
 .eh-location-note {
   margin: 0;
