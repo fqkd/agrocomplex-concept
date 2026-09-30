@@ -27,6 +27,8 @@ describe('ключевые сценарии прототипа', () => {
     }))
     window.location.hash = '#checkout'
     render(<App />)
+    await user.type(screen.getByLabelText('Имя получателя'), 'Мария')
+    await user.type(screen.getByLabelText('Телефон'), '+7 999 123-45-67')
     await user.click(screen.getByRole('button', { name: /Перейти к оплате/ }))
     expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1 })
@@ -59,6 +61,8 @@ describe('ключевые сценарии прототипа', () => {
     expect(screen.getByText('Правило замены сохранено')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /К оформлению/ }))
     expect(await screen.findByRole('heading', { name: 'Оформление' })).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Имя получателя'), 'Мария')
+    await user.type(screen.getByLabelText('Телефон'), '+7 999 123-45-67')
     await user.click(screen.getByRole('button', { name: /Перейти к оплате/ }))
     expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1, cheese: 1 })
