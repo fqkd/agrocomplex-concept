@@ -73,7 +73,10 @@ for (const { width, height } of [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ]) {
-  for (const route of prototypeRoutes) await inspect(route, width, height, route === '#home' ? 'prototype' : undefined)
+  for (const route of prototypeRoutes) {
+    const screenshot = route === '#home' ? 'prototype' : route === '#catalog' ? 'catalog' : route === '#product:milk' ? 'product-milk' : undefined
+    await inspect(route, width, height, screenshot)
+  }
 }
 for (const route of ['#home', '#catalog', '#payment-error']) await inspect(route, 1440, 900)
 for (const { width, height } of [

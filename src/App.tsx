@@ -286,8 +286,7 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
 }
 
 function ProductArt({ product, compact = false }: { product: Product; compact?: boolean }) {
-  const icon = product.category === 'milk' ? <Milk /> : product.category === 'bakery' ? <Wheat /> : product.category === 'meat' ? <Drumstick /> : <Soup />
-  return <span className={'product-art ' + (compact ? 'compact' : '')} aria-hidden="true">{icon}<i>{product.name.split(' ')[0]}</i></span>
+  return <img className={'product-art ' + (compact ? 'compact' : '')} src={`${import.meta.env.BASE_URL}products/${product.image}`} alt="" loading="lazy" />
 }
 
 function CatalogScreen({ session, add }: { session: Session; add: (id: string, amount?: number) => void }) {
@@ -318,10 +317,9 @@ function ProductScreen({ product, count, add }: { product: Product; count: numbe
   const [liked, setLiked] = useState(false)
   return <div className="screen product-screen">
     <Header title="О товаре" action={<button className={'icon-btn ' + (liked ? 'liked' : '')} aria-label={liked ? 'Убрать из избранного' : 'В избранное'} aria-pressed={liked} onClick={() => setLiked(!liked)}><Heart fill={liked ? 'currentColor' : 'none'} /></button>} />
-    <div className="product-hero" style={{ background: product.tone }}><ProductArt product={product} /><em>Иллюстрация категории</em></div>
+    <div className="product-hero" style={{ background: product.tone }}><ProductArt product={product} /></div>
     <div className="content-pad product-copy">{product.badge && <span className="pill">{product.badge}</span>}<h1>{product.name}</h1><p>{product.detail}</p><h2>{money(product.price)}</h2>
-      <div className="fact-grid"><div><b>Состав</b><span>Уточняется в карточке товара</span></div><div><b>Наличие</b><span>{product.available === false ? 'Нужна замена' : 'Есть в выбранной точке'}</span></div></div>
-      <div className="context-note"><MapPin /><p>Показываем цену и наличие после выбора адреса или магазина. В рабочем продукте данные зависят от интеграций.</p></div>
+      <div className="fact-grid"><div><b>Состав</b><span>На упаковке</span></div><div><b>Наличие</b><span>{product.available === false ? 'Нужна замена' : 'Уточним при сборке'}</span></div></div>
     </div>
     <div className="sticky-action">{product.available === false ? <button className="button primary full" onClick={() => { add(product.id); go('cart') }}>Добавить в корзину · нужна замена</button> : count ? <div className="counter large"><button aria-label="Уменьшить" onClick={() => add(product.id, -1)}><Minus /></button><b>{count} в корзине</b><button aria-label="Увеличить" onClick={() => add(product.id)}><Plus /></button></div> : <button className="button primary full" onClick={() => add(product.id)}>Добавить · {money(product.price)}</button>}</div>
   </div>
@@ -334,7 +332,7 @@ function CartScreen({ session, add }: { session: Session; add: (id: string, amou
   const hasMissing = hasUnavailable && !session.substitution
   const substitutionCopy = session.substitution === 'contact'
     ? 'Сборщик согласует доступный вариант в чате'
-    : 'Сыр полутвёрдый, если основной позиции не будет'
+    : 'Сыр российский молодой, если основной позиции не будет'
   return <div className="screen cart-screen">
     <Header title="Корзина" action={items.length ? <button className="text-btn" onClick={() => go('catalog')}>Добавить</button> : null} />
     {!items.length ? <div className="empty-state tall"><ShoppingBasket /><h2>Корзина пока пустая</h2><p>Выберите продукты — адрес и параметры получения уже сохранены.</p><button className="button primary" onClick={() => go('catalog')}>Открыть каталог</button></div> : <div className="content-pad">
