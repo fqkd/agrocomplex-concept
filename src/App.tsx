@@ -279,7 +279,7 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
           title={`Фирменные магазины · ${stores.length}`}
         />
       </>}
-      <div className="context-note"><PackageCheck /><p><b>Сначала контекст — потом каталог</b><br />Цены и наличие будут показаны для выбранного адреса или магазина.</p></div>
+      <div className="context-note"><PackageCheck /><p><b>Выберите адрес или магазин</b><br />Так мы покажем подходящий каталог и условия получения.</p></div>
     </div>
     <div className="sticky-action"><button className="button primary full" disabled={(mode === 'delivery' && address.trim().length < 6) || (mode === 'pickup' && (!selectedPoint || !storeValid))} onClick={() => { update({ fulfillment: mode, city: city === 'Все точки' ? (selectedPoint?.city ?? 'Выбранный магазин') : city, address: address.trim(), store: selectedPoint?.address ?? session.store, storeId: selectedPoint?.id ?? session.storeId }); go('catalog') }}>Показать доступный каталог</button></div>
   </div>
@@ -398,7 +398,7 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
       })}</div>
       <label className="field-label">Способ оплаты</label>
       <div className="payment-choice"><button className={payment === 'card' ? 'selected' : ''} onClick={() => setPayment('card')}><CreditCard /><span><b>Банковская карта</b><small>•••• 2026</small></span><Check /></button><button className={payment === 'sbp' ? 'selected' : ''} onClick={() => setPayment('sbp')}><WalletCards /><span><b>СБП</b><small>Оплата по QR</small></span><Check /></button></div>
-      <button className="checkout-row" onClick={() => go('loyalty')}><span className="row-icon"><BadgePercent /></span><span><small>Программа лояльности</small><b>Начислить бонусы · условия требуют проверки</b></span><ChevronRight /></button>
+      <button className="checkout-row" onClick={() => go('loyalty')}><span className="row-icon"><BadgePercent /></span><span><small>Программа лояльности</small><b>Карта и правила начисления</b></span><ChevronRight /></button>
       <div className="receipt compact"><p><span>{Object.keys(session.cart).filter((id) => session.cart[id] > 0).length} товара · {units} единиц</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + deliveryCost)}</b></p></div>
     </div>
     <div className="sticky-action"><button className="button primary full" disabled={!valid} onClick={() => go('payment-error')}>Перейти к оплате · {money(total + deliveryCost)}</button></div>
@@ -478,7 +478,7 @@ function LoyaltyScreen() {
     <Header title="Моя карта" />
     <div className="loyalty-hero"><span className="loyalty-logo">А</span><small>Баланс карты</small><h1>1 240 <em>бонусов*</em></h1><div className="barcode"><i /><i /><i /><i /><i /><i /><i /><i /><i /></div><p>0000 2408 2026</p></div>
     <div className="content-pad"><div className="loyalty-actions"><button aria-pressed={ready} onClick={() => setReady(!ready)}><QrCode /><b>{ready ? 'Карта готова к показу' : 'Показать кассиру'}</b></button><button onClick={() => go('offers')}><BadgePercent /><b>Мои акции</b></button></div>
-      <div className="info-card"><Sparkles /><p><b>Условия из открытых правил</b><br />На официальном сайте указано: 10 баллов = 1 ₽, баллами можно оплатить до 30% чека. Перед реализацией правила и интеграции нужно подтвердить.</p></div>
+      <div className="info-card"><Sparkles /><p><b>Как использовать баллы</b><br />По опубликованным правилам 10 баллов = 1 ₽; баллами можно оплатить до 30% чека.</p></div>
       <div className="history-list"><h2>История операций</h2><p><span><b>Начисление</b><small>Регулярная корзина</small></span><strong>+48</strong></p><p><span><b>Списание</b><small>Фирменный магазин</small></span><strong>−120</strong></p></div>
       <p className="fine-print">* Баланс не связан с реальной программой и показан только как состояние интерфейса.</p>
     </div>
@@ -500,7 +500,7 @@ function ProfileScreen() {
       <button className="menu-row" onClick={() => go('shopping-list')}><ListChecks /><span><b>Списки покупок</b><small>Для онлайн-заказа и магазина</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('loyalty')}><Barcode /><span><b>Карта лояльности</b><small>Баланс, QR и история</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('location')}><MapPin /><span><b>Адреса и магазины</b><small>Контекст цен и наличия</small></span><ChevronRight /></button>
-      <div className="info-card"><CircleAlert /><p>Все действия остаются внутри браузера. Настоящие заказы, регистрация и оплата не выполняются.</p></div>
+      <div className="info-card"><CircleAlert /><p>История заказов и список покупок сохраняются в этом браузере.</p></div>
     </div></div>
 }
 
