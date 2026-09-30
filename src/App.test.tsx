@@ -36,7 +36,7 @@ describe('ключевые сценарии прототипа', () => {
     const user = userEvent.setup()
     window.location.hash = '#repeat'
     render(<App />)
-    await user.click(screen.getByRole('button', { name: 'Добавить и проверить замену' }))
+    await user.click(screen.getByRole('button', { name: 'Добавить и проверить наличие' }))
     expect(await screen.findByRole('heading', { name: 'Замена товара' })).toBeInTheDocument()
   })
 

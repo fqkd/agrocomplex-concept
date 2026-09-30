@@ -27,6 +27,22 @@ type Session = {
   listCustom: string[]
 }
 
+type OrderRecord = {
+  id: string
+  createdAt: string
+  cart: Record<string, number>
+  fulfillment: 'delivery' | 'pickup'
+  slotDate: string
+  slot: string
+}
+
+const readOrders = (): OrderRecord[] => {
+  try {
+    const value = JSON.parse(localStorage.getItem('agro-demo-orders') || '[]')
+    return Array.isArray(value) ? value : []
+  } catch { return [] }
+}
+
 const normalizeStoreText = (value = '') => value
   .replace(/\s+/g, ' ')
   .replace(/\bг\.\s*/gi, '')
@@ -57,12 +73,12 @@ const initial: Session = {
 
 const scenarioCart: Record<string, number> = { milk: 2, bread: 1, cutlets: 1, cheese: 1 }
 
-const routeFromHash = (): { route: Route; id?: string } => {
+const routeFromHash = (): { route: Route; id?: string; orderId?: string } => {
   const raw = window.location.hash.replace(/^#\/?/, '') || 'home'
   const value = raw.split('?')[0]
   if (value.startsWith('product:')) return { route: 'catalog', id: value.split(':')[1] }
   const known: Route[] = ['home', 'location', 'catalog', 'cart', 'substitution', 'checkout', 'payment-error', 'success', 'repeat', 'shopping-list', 'loyalty', 'offers', 'profile']
-  return known.includes(value as Route) ? { route: value as Route } : { route: 'home' }
+  return known.includes(value as Route) ? { route: value as Route, orderId: new URLSearchParams(raw.split('?')[1] || '').get('id') || undefined } : { route: 'home' }
 }
 
 const readSession = (): Session => {
@@ -115,6 +131,7 @@ const goBack = () => {
 export function App() {
   const [location, setLocation] = useState(routeFromHash)
   const [session, setSession] = useState<Session>(readSession)
+  const [orders, setOrders] = useState<OrderRecord[]>(readOrders)
 
   useEffect(() => {
     const onHash = () => setLocation(routeFromHash())
@@ -130,6 +147,14 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('agro-demo-session', JSON.stringify(session))
   }, [session])
+  useEffect(() => localStorage.setItem('agro-demo-orders', JSON.stringify(orders)), [orders])
+
+  const confirmOrder = () => {
+    const id = crypto.randomUUID()
+    const order: OrderRecord = { id, createdAt: new Date().toISOString(), cart: { ...session.cart }, fulfillment: session.fulfillment, slotDate: session.slotDate, slot: session.slot }
+    setOrders((current) => [order, ...current])
+    go(`success?id=${id}`)
+  }
 
   const update = (patch: Partial<Session>) => setSession((current) => ({ ...current, ...patch }))
   const add = (id: string, amount = 1) => setSession((current) => {
@@ -151,9 +176,9 @@ export function App() {
       case 'cart': content = <CartScreen session={session} add={add} />; break
       case 'substitution': content = <SubstitutionScreen session={session} update={update} />; break
       case 'checkout': content = <CheckoutScreen session={session} update={update} />; break
-      case 'payment-error': content = <PaymentError session={session} />; break
-      case 'success': content = <SuccessScreen session={session} clear={() => update({ cart: {}, substitution: null })} />; break
-      case 'repeat': content = <RepeatScreen update={update} />; break
+      case 'payment-error': content = <PaymentError session={session} onRetry={confirmOrder} />; break
+      case 'success': content = <SuccessScreen order={orders.find((order) => order.id === location.orderId)} clear={() => update({ cart: {}, substitution: null })} />; break
+      case 'repeat': content = <RepeatScreen orders={orders} update={update} />; break
       case 'shopping-list': content = <ShoppingListScreen session={session} update={update} />; break
       case 'loyalty': content = <LoyaltyScreen />; break
       case 'offers': content = <OffersScreen add={add} />; break
@@ -382,7 +407,7 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
   </div>
 }
 
-function PaymentError({ session }: { session: Session }) {
+function PaymentError({ session, onRetry }: { session: Session; onRetry: () => void }) {
   const savedCount = session.substitution ? 4 : 3
   const savedCopy = session.substitution
     ? 'Корзина, адрес, время и правило замены сохранены.'
@@ -390,29 +415,38 @@ function PaymentError({ session }: { session: Session }) {
   return <div className="screen status-screen error-screen">
     <Header title="Оплата" />
     <div className="status-content"><span className="status-icon error"><WifiOff /></span><p className="eyebrow">Связь с банком прервалась</p><h1>Платёж не завершён</h1><p>{savedCopy} Можно вернуться без повторного выбора.</p><div className="saved-state"><Check /><span><b>{savedCount} параметра сохранены</b><small>{session.substitution ? 'Товары · получение · время · замена' : 'Товары · получение · время'}</small></span></div></div>
-    <div className="sticky-action split"><button className="button primary full" onClick={() => go('success')}>Повторить оплату</button><button className="button secondary full" onClick={() => go('cart')}>Вернуться в корзину</button></div>
+    <div className="sticky-action split"><button className="button primary full" onClick={onRetry}>Повторить оплату</button><button className="button secondary full" onClick={() => go('cart')}>Вернуться в корзину</button></div>
   </div>
 }
 
-function SuccessScreen({ session, clear }: { session: Session; clear: () => void }) {
+function SuccessScreen({ order, clear }: { order?: OrderRecord; clear: () => void }) {
+  if (!order) return <div className="screen status-screen"><Header title="Заказ" /><div className="status-content"><span className="status-icon error"><CircleAlert /></span><h1>Заказ не найден</h1><p>Оформите заказ из корзины, чтобы увидеть подтверждение.</p></div><div className="sticky-action"><button className="button primary full" onClick={() => go('cart')}>Открыть корзину</button></div></div>
   return <div className="screen status-screen success-screen">
     <Header title="Готово" back={false} />
-    <div className="status-content"><span className="status-icon success"><Check /></span><p className="eyebrow">Заказ принят</p><h1>{session.fulfillment === 'delivery' ? 'Доставка подтверждена' : 'Самовывоз подтверждён'}</h1><p>Корзина передана на сборку. Статус и изменения будут доступны в истории покупок.</p><div className="order-ticket"><span><small>Номер заказа</small><b>АК · 2408</b></span><span><small>Получение</small><b>{formatSlot(session.slotDate, session.slot)}</b></span><span><small>Способ</small><b>{session.fulfillment === 'delivery' ? 'Курьер' : 'Самовывоз'}</b></span></div></div>
-    <div className="sticky-action split"><button className="button primary full" onClick={() => { clear(); go('home') }}>На главную</button><button className="button secondary full" onClick={() => go('repeat')}>Сохранить как регулярную</button></div>
+    <div className="status-content"><span className="status-icon success"><Check /></span><p className="eyebrow">Заказ принят</p><h1>{order.fulfillment === 'delivery' ? 'Доставка подтверждена' : 'Самовывоз подтверждён'}</h1><p>Демонстрационный заказ сохранён в истории этого браузера.</p><div className="order-ticket"><span><small>Номер заказа</small><b>АК · {order.id.slice(0, 8)}</b></span><span><small>Получение</small><b>{formatSlot(order.slotDate, order.slot)}</b></span><span><small>Способ</small><b>{order.fulfillment === 'delivery' ? 'Курьер' : 'Самовывоз'}</b></span></div></div>
+    <div className="sticky-action split"><button className="button primary full" onClick={() => { clear(); go('home') }}>На главную</button><button className="button secondary full" onClick={() => go('repeat')}>Повторить позже</button></div>
   </div>
 }
 
-function RepeatScreen({ update }: { update: (p: Partial<Session>) => void }) {
-  const repeat = { milk: 2, bread: 1, cutlets: 1, cheese: 1 }
+function RepeatScreen({ orders, update }: { orders: OrderRecord[]; update: (p: Partial<Session>) => void }) {
+  const [selectedId, setSelectedId] = useState(orders[0]?.id || '')
+  const selected = orders.find((order) => order.id === selectedId) || orders[0]
+  const repeat = selected?.cart || scenarioCart
+  const entries = Object.entries(repeat).filter(([id, count]) => count > 0 && products.some((product) => product.id === id))
+  const available = entries.filter(([id]) => products.find((product) => product.id === id)?.available !== false).length
+  const unavailable = entries.length - available
+  const units = entries.reduce((sum, [, count]) => sum + count, 0)
   return <div className="screen">
     <Header title="Повторить покупки" />
     <div className="content-pad">
-      <div className="repeat-head"><span><RefreshCcw /></span><div><p className="eyebrow">Регулярная корзина</p><h1>Покупали неделю назад</h1><p>Перед добавлением проверим цены и наличие для выбранной точки.</p></div></div>
-      <div className="comparison"><div><small>Было</small><b>4 товара · 5 единиц</b></div><ArrowRight /><div><small>Сейчас</small><b>3 товара доступны · 1 нужна замена</b></div></div>
-      <div className="cart-list compact-list">{Object.entries(repeat).map(([id, count]) => { const p = products.find((x) => x.id === id)!; return <div className="cart-item" key={id}><div className="mini-visual" style={{ background: p.tone }}><ProductArt product={p} compact /></div><span><b>{p.name}</b><small>{count} шт. · {money(p.price * count)}</small></span>{p.available === false ? <em className="warn-label">Нужна замена</em> : <Check className="available-check" />}</div> })}</div>
+      <div className="repeat-head"><span><RefreshCcw /></span><div><p className="eyebrow">{selected ? 'История заказов' : 'Пример сценария'}</p><h1>{selected ? 'Повторить выбранный заказ' : 'Как работает повтор корзины'}</h1><p>Перед добавлением проверим цены и наличие для выбранной точки.</p></div></div>
+      {orders.length > 1 && <div className="repeat-order-list">{orders.map((order) => <button className={'choice-card ' + (order.id === selected?.id ? 'selected' : '')} key={order.id} onClick={() => setSelectedId(order.id)}><span><b>{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }).format(new Date(order.createdAt))}</b><small>{Object.values(order.cart).reduce((sum, count) => sum + count, 0)} ед. · {order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}</small></span></button>)}</div>}
+      {!selected && <div className="context-note"><CircleAlert /><p>Это демонстрационный набор. После оформления заказа здесь появится ваша история.</p></div>}
+      <div className="comparison"><div><small>В заказе</small><b>{entries.length} позиций · {units} ед.</b></div><ArrowRight /><div><small>Для повтора</small><b>Доступно: {available} · замена: {unavailable}</b></div></div>
+      <div className="cart-list compact-list">{entries.map(([id, count]) => { const p = products.find((x) => x.id === id)!; return <div className="cart-item" key={id}><div className="mini-visual" style={{ background: p.tone }}><ProductArt product={p} compact /></div><span><b>{p.name}</b><small>{count} шт. · {money(p.price * count)}</small></span>{p.available === false ? <em className="warn-label">Нужна замена</em> : <Check className="available-check" />}</div> })}</div>
       <div className="context-note"><MapPin /><p>Актуальность цены и наличия зависит от данных выбранного магазина.</p></div>
     </div>
-    <div className="sticky-action"><button className="button primary full" onClick={() => { update({ cart: repeat, substitution: null }); go('substitution') }}>Добавить и проверить замену</button></div>
+    <div className="sticky-action"><button className="button primary full" onClick={() => { update({ cart: repeat, substitution: null }); go(unavailable ? 'substitution' : 'cart') }}>Добавить и проверить наличие</button></div>
   </div>
 }
 

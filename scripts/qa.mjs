@@ -175,6 +175,13 @@ await scenario('контекст → замена → ошибка → восс�
   await page.getByRole('button', { name: 'Повторить оплату' }).click()
   await page.getByRole('heading', { name: 'Доставка подтверждена' }).waitFor()
   if (!(await page.locator('.order-ticket').innerText()).includes(selectedSlot)) throw new Error('Выбранный интервал потерян после оплаты')
+  const ticket = await page.locator('.order-ticket').innerText()
+  await page.reload({ waitUntil: 'networkidle' })
+  if ((await page.locator('.order-ticket').innerText()) !== ticket) throw new Error('Подтверждение заказа не сохранилось после перезагрузки')
+  await page.getByRole('button', { name: 'Повторить позже' }).click()
+  await page.getByRole('heading', { name: 'Повторить выбранный заказ' }).waitFor()
+  await page.getByText('Молоко 3,2%').waitFor()
+  await page.getByText('Сыр сливочный').waitFor()
 })
 
 await scenario('список покупок → свой товар → отметка → очистка', async (page) => {
