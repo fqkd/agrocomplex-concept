@@ -339,6 +339,7 @@ function ProductScreen({ product, count, add }: { product: Product; count: numbe
 function CartScreen({ session, add }: { session: Session; add: (id: string, amount?: number) => void }) {
   const items = Object.entries(session.cart).filter(([, count]) => count > 0).map(([id, count]) => ({ product: products.find((p) => p.id === id)!, count })).filter((x) => x.product)
   const total = items.reduce((sum, x) => sum + x.product.price * x.count, 0)
+  const deliveryCost = session.fulfillment === 'delivery' && total < 1500 ? 300 : 0
   const hasUnavailable = items.some((x) => x.product.available === false)
   const hasMissing = hasUnavailable && !session.substitution
   const substitutionCopy = session.substitution === 'contact'
@@ -351,9 +352,9 @@ function CartScreen({ session, add }: { session: Session; add: (id: string, amou
       <div className="cart-list">{items.map(({ product, count }) => <div className="cart-item" key={product.id}><div className="mini-visual" style={{ background: product.tone }}><ProductArt product={product} compact /></div><span><b>{product.name}</b><small>{product.detail}</small><strong>{money(product.price * count)}</strong></span><div className="counter"><button aria-label={`Уменьшить ${product.name}`} onClick={() => add(product.id, -1)}><Minus /></button><b>{count}</b><button aria-label={`Увеличить ${product.name}`} onClick={() => add(product.id)}><Plus /></button></div></div>)}</div>
       {hasMissing && <button className="missing-card" onClick={() => go('substitution')}><CircleAlert /><span><b>Для одной позиции нужна замена</b><small>Выберите вариант до оформления</small></span><ChevronRight /></button>}
       {hasUnavailable && session.substitution && <div className="resolved-card"><Check /><span><b>Правило замены сохранено</b><small>{substitutionCopy}</small></span><button onClick={() => go('substitution')}>Изменить</button></div>}
-      <div className="receipt"><p><span>Товары</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{session.fulfillment === 'pickup' || total >= 1500 ? '0 ₽' : '300 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + (session.fulfillment === 'delivery' && total < 1500 ? 300 : 0))}</b></p></div>
+      <div className="receipt"><p><span>Товары</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + deliveryCost)}</b></p></div>
     </div>}
-    {items.length > 0 && <div className="sticky-action"><button className="button primary full" disabled={hasMissing} onClick={() => go('checkout')}>{hasMissing ? 'Сначала выберите замену' : `К оформлению · ${money(total)}`}</button></div>}
+    {items.length > 0 && <div className="sticky-action"><button className="button primary full" disabled={hasMissing} onClick={() => go('checkout')}>{hasMissing ? 'Сначала выберите замену' : `К оформлению · ${money(total + deliveryCost)}`}</button></div>}
   </div>
 }
 
@@ -388,7 +389,8 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
     const first = slotTimes.find((slot) => isSlotAvailable(dateKey, slot, now))
     if (first) update({ slotDate: dateKey, slot: first })
   }
-  const total = Object.entries(session.cart).reduce((sum, [id, count]) => sum + (products.find((p) => p.id === id)?.price || 0) * count, 0)
+  const items = Object.entries(session.cart).filter(([, count]) => count > 0).map(([id, count]) => ({ product: products.find((p) => p.id === id), count })).filter((item): item is { product: Product; count: number } => Boolean(item.product))
+  const total = items.reduce((sum, item) => sum + item.product.price * item.count, 0)
   const [payment, setPayment] = useState<'card' | 'sbp'>('card')
   const [name, setName] = useState(() => { try { return JSON.parse(sessionStorage.getItem('agro-checkout-contacts') || '{}').name || readProfile().name } catch { return readProfile().name } })
   const [phone, setPhone] = useState(() => { try { return JSON.parse(sessionStorage.getItem('agro-checkout-contacts') || '{}').phone || readProfile().phone } catch { return readProfile().phone } })
@@ -411,6 +413,7 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
       <label className="field-label">Способ оплаты</label>
       <div className="payment-choice"><button className={payment === 'card' ? 'selected' : ''} onClick={() => setPayment('card')}><CreditCard /><span><b>Банковская карта</b><small>выберите при оплате</small></span><Check /></button><button className={payment === 'sbp' ? 'selected' : ''} onClick={() => setPayment('sbp')}><WalletCards /><span><b>СБП</b><small>Оплата по QR</small></span><Check /></button></div>
       <button className="checkout-row" onClick={() => go('loyalty')}><span className="row-icon"><BadgePercent /></span><span><small>Программа лояльности</small><b>Карта и правила начисления</b></span><ChevronRight /></button>
+      <section className="checkout-items"><h2>Состав заказа</h2>{items.map(({ product, count }) => <p key={product.id}><span>{product.name} × {count}</span><b>{money(product.price * count)}</b></p>)}{session.cart.cheese > 0 && session.substitution && <small>Если сыра не будет: {session.substitution === 'alt' ? 'заменить на российский молодой' : session.substitution === 'contact' ? 'согласовать замену со мной' : 'убрать из заказа'}. Итоговая стоимость может измениться.</small>}</section>
       <div className="receipt compact"><p><span>{Object.keys(session.cart).filter((id) => session.cart[id] > 0).length} товара · {units} единиц</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + deliveryCost)}</b></p></div>
     </div>
     <div className="sticky-action"><button className="button primary full" disabled={!valid} onClick={() => go('payment-error')}>Перейти к оплате · {money(total + deliveryCost)}</button></div>
@@ -433,7 +436,7 @@ function SuccessScreen({ order, clear }: { order?: OrderRecord; clear: () => voi
   if (!order) return <div className="screen status-screen"><Header title="Заказ" /><div className="status-content"><span className="status-icon error"><CircleAlert /></span><h1>Заказ не найден</h1><p>Оформите заказ из корзины, чтобы увидеть подтверждение.</p></div><div className="sticky-action"><button className="button primary full" onClick={() => go('cart')}>Открыть корзину</button></div></div>
   return <div className="screen status-screen success-screen">
     <Header title="Готово" back={false} />
-    <div className="status-content"><span className="status-icon success"><Check /></span><p className="eyebrow">Заказ принят</p><h1>{order.fulfillment === 'delivery' ? 'Доставка подтверждена' : 'Самовывоз подтверждён'}</h1><p>Заказ сохранён в истории. Его можно собрать снова.</p><div className="order-ticket"><span><small>Номер заказа</small><b>АК · {order.id.slice(0, 8)}</b></span><span><small>Получение</small><b>{formatSlot(order.slotDate, order.slot)}</b></span><span><small>Способ</small><b>{order.fulfillment === 'delivery' ? 'Курьер' : 'Самовывоз'}</b></span></div></div>
+    <div className="status-content"><span className="status-icon success"><Check /></span><p className="eyebrow">Заказ принят</p><h1>{order.fulfillment === 'delivery' ? 'Доставка подтверждена' : 'Самовывоз подтверждён'}</h1><p>Заказ сохранён в истории. Его можно собрать снова.</p><div className="order-ticket"><span><small>Номер заказа</small><b>АК · {order.id.slice(0, 8)}</b></span><span><small>Получение</small><b>{formatSlot(order.slotDate, order.slot)}</b></span><span><small>Способ</small><b>{order.fulfillment === 'delivery' ? 'Курьер' : 'Самовывоз'}</b></span></div><div className="order-summary"><b>В заказе</b>{Object.entries(order.cart).filter(([, count]) => count > 0).map(([id, count]) => { const product = products.find((item) => item.id === id); return product ? <span key={id}>{product.name} × {count}</span> : null })}</div></div>
     <div className="sticky-action split"><button className="button primary full" onClick={() => { clear(); go('home') }}>На главную</button><button className="button secondary full" onClick={() => go('repeat')}>Повторить позже</button></div>
   </div>
 }
@@ -498,7 +501,7 @@ function LoyaltyScreen() {
   return <div className="screen loyalty-screen">
     <Header title="Моя карта" />
     <div className="loyalty-hero"><span className="loyalty-logo">А</span><small>Программа лояльности</small><h1>Баллы — в личном кабинете</h1><p>Баланс и код карты доступны в официальном сервисе. Этот прототип не подключён к вашему счёту.</p><a href="https://agrokomplexshop.ru/loyalty/" target="_blank" rel="noreferrer">Открыть программу <ArrowRight size={16} /></a></div>
-    <div className="content-pad"><div className="loyalty-actions"><button onClick={() => go('offers')}><BadgePercent /><b>Посмотреть товары</b></button></div>
+    <div className="content-pad">
       <div className="info-card"><Sparkles /><p><b>Как использовать баллы</b><br />По опубликованным правилам 10 баллов = 1 ₽; баллами можно оплатить до 30% чека.</p></div>
       <p className="fine-print">История начислений также доступна только в официальном личном кабинете.</p>
     </div>

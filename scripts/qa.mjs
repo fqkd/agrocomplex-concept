@@ -74,7 +74,7 @@ for (const { width, height } of [
   { width: 430, height: 932 },
 ]) {
   for (const route of prototypeRoutes) {
-    const screenshot = route === '#home' ? 'prototype' : route === '#catalog' ? 'catalog' : route === '#product:milk' ? 'product-milk' : undefined
+    const screenshot = ({ '#home': 'prototype', '#catalog': 'catalog', '#product:milk': 'product-milk', '#checkout': 'checkout', '#repeat': 'repeat', '#shopping-list': 'shopping-list', '#loyalty': 'loyalty', '#profile': 'profile' })[route]
     await inspect(route, width, height, screenshot)
   }
 }
@@ -160,7 +160,11 @@ await scenario('контекст → замена → ошибка → восс�
   await page.getByRole('button', { name: /Для одной позиции нужна замена/ }).click()
   await page.getByRole('button', { name: /Заменить на похожий/ }).click()
   await page.getByRole('button', { name: 'Сохранить правило замены' }).click()
+  const cartTotal = (await page.locator('.receipt .total b').innerText()).trim()
+  if (!(await page.getByRole('button', { name: /К оформлению/ }).innerText()).includes(cartTotal)) throw new Error('Сумма на кнопке корзины не совпадает с итогом')
   await page.getByRole('button', { name: /К оформлению/ }).click()
+  const checkoutItems = await page.locator('.checkout-items').innerText()
+  if (!checkoutItems.includes('Молоко 3,2%') || !checkoutItems.includes('Сыр сливочный') || !checkoutItems.includes('заменить на российский молодой')) throw new Error('При оформлении потерян состав заказа или условие замены')
   await page.getByRole('button', { name: 'Завтра' }).click()
   await page.getByRole('button', { name: /18:00–20:00/ }).click()
   await page.reload({ waitUntil: 'networkidle' })
@@ -181,6 +185,7 @@ await scenario('контекст → замена → ошибка → восс�
   await page.goBack()
   await page.getByRole('button', { name: 'Повторить оплату' }).click()
   await page.getByRole('heading', { name: 'Доставка подтверждена' }).waitFor()
+  if (!(await page.locator('.order-summary').innerText()).includes('Сыр сливочный')) throw new Error('Состав заказа отсутствует в подтверждении')
   if (!(await page.locator('.order-ticket').innerText()).includes(selectedSlot)) throw new Error('Выбранный интервал потерян после оплаты')
   const ticket = await page.locator('.order-ticket').innerText()
   await page.reload({ waitUntil: 'networkidle' })
@@ -222,6 +227,17 @@ await scenario('профиль сохраняет контакты; карта �
   if (await page.getByText('1 240').count()) throw new Error('На карте показан вымышленный баланс')
   const href = await page.getByRole('link', { name: 'Открыть программу' }).getAttribute('href')
   if (href !== 'https://agrokomplexshop.ru/loyalty/') throw new Error('Неверная ссылка на официальную программу')
+})
+
+await scenario('низ профиля прокручивается выше навигации', async (page) => {
+  await page.goto(`${base}/#profile`, { waitUntil: 'networkidle' })
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  const gap = await page.evaluate(() => {
+    const last = document.querySelector('.profile-screen .info-card')?.getBoundingClientRect()
+    const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect()
+    return last && nav ? nav.top - last.bottom : -1
+  })
+  if (gap < 8) throw new Error(`Последняя карточка профиля перекрыта навигацией: ${gap}px`)
 })
 
 await scenario('прямые ссылки сохраняются после обновления', async (page) => {
