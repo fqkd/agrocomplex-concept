@@ -215,7 +215,9 @@ function Header({ title, back = true, action }: { title: string; back?: boolean;
 
 function HomeScreen({ session, orders, add }: { session: Session; orders: OrderRecord[]; add: (id: string, amount?: number) => void }) {
   const latest = orders[0]
-  const repeatMeta = latest ? `${Object.values(latest.cart).filter((count) => count > 0).length} товара · ${Object.values(latest.cart).reduce((sum, count) => sum + count, 0)} ед.` : 'Пример корзины'
+  const positions = latest ? Object.values(latest.cart).filter((count) => count > 0).length : 0
+  const positionWord = positions % 100 >= 11 && positions % 100 <= 14 ? 'товаров' : positions % 10 === 1 ? 'товар' : positions % 10 >= 2 && positions % 10 <= 4 ? 'товара' : 'товаров'
+  const repeatMeta = latest ? `${positions} ${positionWord} · ${Object.values(latest.cart).reduce((sum, count) => sum + count, 0)} ед.` : 'Пример корзины'
   return <div className="screen home-screen">
     <Header title="Агрокомплекс" back={false} action={<button className="icon-btn" aria-label="Профиль" onClick={() => go('profile')}><UserRound /></button>} />
     <button className="location-bar" onClick={() => go('location')}>
@@ -237,7 +239,7 @@ function HomeScreen({ session, orders, add }: { session: Session; orders: OrderR
       <button className="category-tile own" onClick={() => go('catalog?own')}><span><Wheat /></span><b>Своё производство</b><small>От поля до полки</small></button>
       <button className="category-tile ready" onClick={() => go('catalog?ready')}><span><Soup /></span><b>Наша кухня</b><small>Готово к столу</small></button>
     </div>
-    <SectionTitle title="Сегодня для вас" action="Все акции" onClick={() => go('offers')} />
+    <SectionTitle title="Что добавить" action="Смотреть подборку" onClick={() => go('offers')} />
     <div className="product-row">{products.slice(0, 3).map((p) => <ProductCard key={p.id} product={p} add={add} />)}</div>
   </div>
 }
@@ -504,8 +506,8 @@ function LoyaltyScreen() {
 }
 
 function OffersScreen({ add }: { add: (id: string, amount?: number) => void }) {
-  return <div className="screen offers-screen"><Header title="Для вас" />
-    <div className="content-pad"><div className="offer-banner"><span>Персональная подборка</span><h1>Продукты к завтраку</h1><p>Рекомендации на основе повторяемых покупок.</p></div><SectionTitle title="Можно добавить" />
+  return <div className="screen offers-screen"><Header title="Подборка" />
+    <div className="content-pad"><div className="offer-banner"><span>Из каталога</span><h1>Продукты на каждый день</h1><p>Молоко, хлеб и готовые блюда можно положить в корзину сразу.</p></div><SectionTitle title="Можно добавить" />
       <div className="catalog-grid">{products.slice(0, 4).map((p) => <ProductCard key={p.id} product={p} add={add} />)}</div>
     </div>
   </div>
