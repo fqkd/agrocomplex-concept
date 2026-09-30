@@ -8,6 +8,7 @@ import {
 import { LocationMap } from './LocationMap'
 import { agroStores } from './agroStores'
 import { categoryLabels, money, products, type Product } from './data'
+import { formatSlot, isSlotAvailable, recommendedSlot, slotDateKey, slotTimes } from './slots'
 
 type Route = 'home' | 'location' | 'catalog' | 'cart' | 'substitution' | 'checkout' |
   'payment-error' | 'success' | 'repeat' | 'shopping-list' | 'loyalty' | 'offers' | 'profile'
@@ -21,6 +22,7 @@ type Session = {
   cart: Record<string, number>
   substitution: string | null
   slot: string
+  slotDate: string
   listDone: string[]
   listCustom: string[]
 }
@@ -48,7 +50,7 @@ const initial: Session = {
   fulfillment: 'delivery',
   cart: {},
   substitution: null,
-  slot: '18:00–20:00',
+  ...recommendedSlot(),
   listDone: [],
   listCustom: [],
 }
@@ -215,6 +217,9 @@ function SectionTitle({ title, action, onClick }: { title: string; action?: stri
 }
 
 function LocationScreen({ session, update }: { session: Session; update: (p: Partial<Session>) => void }) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
+  const nextSlot = recommendedSlot(now)
   const [mode, setMode] = useState(session.fulfillment)
   const [city, setCity] = useState(session.city)
   const [address, setAddress] = useState(session.address)
@@ -239,7 +244,7 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
       {mode === 'delivery' ? <>
         <label className="field-label" htmlFor="address">Адрес доставки</label>
         <div className="input-with-icon"><MapPin /><input id="address" value={address} onChange={(e) => setAddress(e.target.value)} aria-label="Адрес доставки" /></div>
-        <div className="notice"><Clock3 /><span><b>Ближайший интервал</b><small>Сегодня, 18:00–20:00</small></span></div>
+        <div className="notice"><Clock3 /><span><b>Ближайший интервал</b><small>{formatSlot(nextSlot.slotDate, nextSlot.slot)}</small></span></div>
       </> : <>
         <LocationMap
           points={stores}
@@ -341,13 +346,21 @@ function SubstitutionScreen({ session, update }: { session: Session; update: (p:
 }
 
 function CheckoutScreen({ session, update }: { session: Session; update: (p: Partial<Session>) => void }) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
+  const today = slotDateKey(0, now)
+  const tomorrow = slotDateKey(1, now)
+  const selectDate = (dateKey: string) => {
+    const first = slotTimes.find((slot) => isSlotAvailable(dateKey, slot, now))
+    if (first) update({ slotDate: dateKey, slot: first })
+  }
   const total = Object.entries(session.cart).reduce((sum, [id, count]) => sum + (products.find((p) => p.id === id)?.price || 0) * count, 0)
   const [payment, setPayment] = useState<'card' | 'sbp'>('card')
   const [name, setName] = useState('Андрей')
   const [phone, setPhone] = useState('+7 900 000-00-00')
   const deliveryCost = session.fulfillment === 'delivery' && total < 1500 ? 300 : 0
   const units = Object.values(session.cart).reduce((a, b) => a + b, 0)
-  const valid = name.trim().length > 1 && phone.replace(/\D/g, '').length >= 11 && Boolean(session.slot) && Boolean(session.fulfillment === 'delivery' ? session.address : session.storeId)
+  const valid = name.trim().length > 1 && phone.replace(/\D/g, '').length >= 11 && isSlotAvailable(session.slotDate, session.slot, now) && Boolean(session.fulfillment === 'delivery' ? session.address : session.storeId)
   return <div className="screen checkout-screen">
     <Header title="Оформление" />
     <div className="content-pad">
@@ -355,7 +368,11 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
       <button className="checkout-row" onClick={() => go('location')}><span className="row-icon"><MapPin /></span><span><small>{session.fulfillment === 'delivery' ? 'Адрес' : 'Магазин'}</small><b>{session.fulfillment === 'delivery' ? session.address : session.store}</b></span><ChevronRight /></button>
       <div className="checkout-fields"><label><span>Имя получателя</span><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Имя получателя" /></label><label><span>Телефон</span><input value={phone} onChange={(event) => setPhone(event.target.value)} aria-label="Телефон" inputMode="tel" /></label></div>
       <label className="field-label">Время получения</label>
-      <div className="slot-grid">{['16:00–18:00', '18:00–20:00', '20:00–22:00'].map((s) => <button key={s} disabled={s === '20:00–22:00'} className={session.slot === s ? 'selected' : ''} onClick={() => update({ slot: s })}>{s}<small>{s === '20:00–22:00' ? 'нет мест' : 'сегодня'}</small></button>)}</div>
+      <div className="segmented inline"><button className={session.slotDate === today ? 'active' : ''} disabled={!slotTimes.some((slot) => isSlotAvailable(today, slot, now))} onClick={() => selectDate(today)}>Сегодня</button><button className={session.slotDate === tomorrow ? 'active' : ''} onClick={() => selectDate(tomorrow)}>Завтра</button></div>
+      <div className="slot-grid">{slotTimes.map((slot) => {
+        const available = isSlotAvailable(session.slotDate, slot, now)
+        return <button key={slot} disabled={!available} className={session.slot === slot && available ? 'selected' : ''} onClick={() => update({ slot })}>{slot}<small>{slot === '20:00–22:00' ? 'нет мест' : available ? 'доступно' : 'время прошло'}</small></button>
+      })}</div>
       <label className="field-label">Способ оплаты</label>
       <div className="payment-choice"><button className={payment === 'card' ? 'selected' : ''} onClick={() => setPayment('card')}><CreditCard /><span><b>Банковская карта</b><small>•••• 2026</small></span><Check /></button><button className={payment === 'sbp' ? 'selected' : ''} onClick={() => setPayment('sbp')}><WalletCards /><span><b>СБП</b><small>Оплата по QR</small></span><Check /></button></div>
       <button className="checkout-row" onClick={() => go('loyalty')}><span className="row-icon"><BadgePercent /></span><span><small>Программа лояльности</small><b>Начислить бонусы · условия требуют проверки</b></span><ChevronRight /></button>
@@ -380,7 +397,7 @@ function PaymentError({ session }: { session: Session }) {
 function SuccessScreen({ session, clear }: { session: Session; clear: () => void }) {
   return <div className="screen status-screen success-screen">
     <Header title="Готово" back={false} />
-    <div className="status-content"><span className="status-icon success"><Check /></span><p className="eyebrow">Заказ принят</p><h1>{session.fulfillment === 'delivery' ? 'Доставка подтверждена' : 'Самовывоз подтверждён'}</h1><p>Корзина передана на сборку. Статус и изменения будут доступны в истории покупок.</p><div className="order-ticket"><span><small>Номер заказа</small><b>АК · 2408</b></span><span><small>Получение</small><b>{session.slot}</b></span><span><small>Способ</small><b>{session.fulfillment === 'delivery' ? 'Курьер' : 'Самовывоз'}</b></span></div></div>
+    <div className="status-content"><span className="status-icon success"><Check /></span><p className="eyebrow">Заказ принят</p><h1>{session.fulfillment === 'delivery' ? 'Доставка подтверждена' : 'Самовывоз подтверждён'}</h1><p>Корзина передана на сборку. Статус и изменения будут доступны в истории покупок.</p><div className="order-ticket"><span><small>Номер заказа</small><b>АК · 2408</b></span><span><small>Получение</small><b>{formatSlot(session.slotDate, session.slot)}</b></span><span><small>Способ</small><b>{session.fulfillment === 'delivery' ? 'Курьер' : 'Самовывоз'}</b></span></div></div>
     <div className="sticky-action split"><button className="button primary full" onClick={() => { clear(); go('home') }}>На главную</button><button className="button secondary full" onClick={() => go('repeat')}>Сохранить как регулярную</button></div>
   </div>
 }

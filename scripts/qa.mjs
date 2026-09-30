@@ -158,6 +158,12 @@ await scenario('контекст → замена → ошибка → восс�
   await page.getByRole('button', { name: /Заменить на похожий/ }).click()
   await page.getByRole('button', { name: 'Сохранить правило замены' }).click()
   await page.getByRole('button', { name: /К оформлению/ }).click()
+  await page.getByRole('button', { name: 'Завтра' }).click()
+  await page.getByRole('button', { name: /18:00–20:00/ }).click()
+  await page.reload({ waitUntil: 'networkidle' })
+  if (!(await page.getByRole('button', { name: 'Завтра' }).getAttribute('class')).includes('active')) throw new Error('Дата получения не сохранилась после перезагрузки')
+  const selectedSlot = (await page.locator('.slot-grid button.selected').innerText()).slice(0, 11)
+  if (selectedSlot !== '18:00–20:00') throw new Error('Интервал получения не сохранился после перезагрузки')
   if (await page.getByRole('button', { name: /20:00–22:00/ }).isEnabled()) throw new Error('Недоступный интервал активен')
   await page.getByRole('button', { name: /Перейти к оплате/ }).click()
   await page.getByRole('heading', { name: 'Платёж не завершён' }).waitFor()
@@ -168,7 +174,7 @@ await scenario('контекст → замена → ошибка → восс�
   await page.goBack()
   await page.getByRole('button', { name: 'Повторить оплату' }).click()
   await page.getByRole('heading', { name: 'Доставка подтверждена' }).waitFor()
-  await page.getByText('18:00–20:00').waitFor()
+  if (!(await page.locator('.order-ticket').innerText()).includes(selectedSlot)) throw new Error('Выбранный интервал потерян после оплаты')
 })
 
 await scenario('список покупок → свой товар → отметка → очистка', async (page) => {
