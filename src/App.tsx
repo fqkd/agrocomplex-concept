@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import {
   ArrowLeft, ArrowRight, BadgePercent, Barcode, Check, ChevronDown, ChevronRight,
   CircleAlert, Clock3, CreditCard, Heart, Home, ListChecks, LoaderCircle, MapPin,
-  Drumstick, Milk, Minus, PackageCheck, Plus, QrCode, RefreshCcw, Search, ShoppingBasket, ShoppingCart,
+  Drumstick, Milk, Minus, PackageCheck, Pencil, Plus, RefreshCcw, Search, ShoppingBasket, ShoppingCart,
   Soup, Sparkles, Store, Truck, UserRound, WalletCards, Wheat, WifiOff, X,
 } from 'lucide-react'
 import { LocationMap } from './LocationMap'
@@ -220,8 +220,8 @@ function HomeScreen({ session, add }: { session: Session; add: (id: string, amou
     </section>
     <div className="quick-grid">
       <Quick icon={<RefreshCcw />} label="Повторить" meta="4 товара · 5 ед." onClick={() => go('repeat')} />
-      <Quick icon={<Barcode />} label="Моя карта" meta="1 240 бонусов*" onClick={() => go('loyalty')} />
-      <Quick icon={<ListChecks />} label="Список" meta={`${session.listDone.length} из 6`} onClick={() => go('shopping-list')} />
+      <Quick icon={<Barcode />} label="Моя карта" meta="Правила и баланс" onClick={() => go('loyalty')} />
+      <Quick icon={<ListChecks />} label="Список" meta={`${session.listDone.length} из ${6 + session.listCustom.length}`} onClick={() => go('shopping-list')} />
     </div>
     <SectionTitle title="Купить быстрее" action="В каталог" onClick={() => go('catalog')} />
     <div className="category-tiles">
@@ -450,37 +450,45 @@ function RepeatScreen({ orders, update }: { orders: OrderRecord[]; update: (p: P
 
 function ShoppingListScreen({ session, update }: { session: Session; update: (p: Partial<Session>) => void }) {
   const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
   const base = ['Молоко', 'Хлеб', 'Фрукты', 'Крупа', 'Готовый ужин', 'Товары для дома']
   const list = [...base, ...session.listCustom]
   const toggle = (item: string) => update({ listDone: session.listDone.includes(item) ? session.listDone.filter((x) => x !== item) : [...session.listDone, item] })
+  const aliases: Record<string, string> = { Молоко: 'milk', Хлеб: 'bread', 'Готовый ужин': 'cutlets' }
+  const productFor = (item: string) => products.find((product) => product.id === aliases[item] || product.name.toLocaleLowerCase('ru').includes(item.toLocaleLowerCase('ru')))
+  const available = list.filter((item) => !session.listDone.includes(item)).map(productFor).filter((product): product is Product => Boolean(product && product.available !== false))
+  const saveEdit = () => {
+    if (!editing) return
+    const value = editDraft.trim()
+    if (value && (value === editing || !list.includes(value))) update({
+      listCustom: session.listCustom.map((item) => item === editing ? value : item),
+      listDone: session.listDone.map((item) => item === editing ? value : item),
+    })
+    setEditing(null)
+  }
   return <div className="screen list-screen">
     <Header title="Список для магазина" />
     <div className="content-pad">
       <div className="list-progress"><span><b>{session.listDone.length}</b><small>из {list.length}</small></span><div><i style={{ width: `${session.listDone.length / list.length * 100}%` }} /></div></div>
       <p className="muted">Для похода в магазин · изменения сохраняются автоматически</p>
       <form className="list-add" onSubmit={(event) => { event.preventDefault(); const item = draft.trim(); if (item && !list.includes(item)) update({ listCustom: [...session.listCustom, item] }); setDraft('') }}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Добавить свой товар" aria-label="Новый товар" /><button className="button primary" disabled={!draft.trim()}><Plus /> Добавить</button></form>
-      <div className="check-list">{list.map((item) => <div key={item} className={session.listDone.includes(item) ? 'done' : ''}><button aria-label={`${session.listDone.includes(item) ? 'Вернуть' : 'Отметить'} ${item}`} onClick={() => toggle(item)}><span className="checkbox">{session.listDone.includes(item) && <Check />}</span><b>{item}</b><small>{session.listDone.includes(item) ? 'Куплено' : 'Отметить'}</small></button>{session.listCustom.includes(item) && <button className="list-delete" aria-label={`Удалить ${item}`} onClick={() => update({ listCustom: session.listCustom.filter((value) => value !== item), listDone: session.listDone.filter((value) => value !== item) })}><X /></button>}</div>)}</div>
+      <div className="check-list">{list.map((item) => <div key={item} className={session.listDone.includes(item) ? 'done' : ''}>{editing === item ? <form className="list-edit" onSubmit={(event) => { event.preventDefault(); saveEdit() }}><input aria-label={`Изменить ${item}`} value={editDraft} onChange={(event) => setEditDraft(event.target.value)} autoFocus /><button aria-label="Сохранить" disabled={!editDraft.trim()}><Check /></button><button type="button" aria-label="Отмена" onClick={() => setEditing(null)}><X /></button></form> : <><button aria-label={`${session.listDone.includes(item) ? 'Вернуть' : 'Отметить'} ${item}`} onClick={() => toggle(item)}><span className="checkbox">{session.listDone.includes(item) && <Check />}</span><b>{item}</b><small>{session.listDone.includes(item) ? 'Куплено' : 'Отметить'}</small></button>{session.listCustom.includes(item) && <div className="list-controls"><button aria-label={`Изменить ${item}`} onClick={() => { setEditing(item); setEditDraft(item) }}><Pencil /></button><button aria-label={`Удалить ${item}`} onClick={() => update({ listCustom: session.listCustom.filter((value) => value !== item), listDone: session.listDone.filter((value) => value !== item) })}><X /></button></div>}</>}</div>)}</div>
+      <p className="muted">{available.length ? `Из неотмеченного списка в каталоге доступно: ${available.map((product) => product.name).join(', ')}.` : 'Среди неотмеченных позиций пока нет товаров из каталога. Остальное можно сверить в магазине.'}</p>
       <button className="text-btn list-clear" disabled={!session.listDone.length && !session.listCustom.length} onClick={() => update({ listDone: [], listCustom: [] })}>Очистить отмеченное и свои товары</button>
       <button className="store-mode-card" onClick={() => go('location')}><Store /><span><b>Открыть режим магазина</b><small>Выбрать ближайшую точку и сверить список</small></span><ChevronRight /></button>
     </div>
-    <div className="sticky-action"><button className="button primary full" onClick={() => { update({ cart: {
-      ...session.cart,
-      milk: Math.max(1, session.cart.milk || 0),
-      bread: Math.max(1, session.cart.bread || 0),
-      cutlets: Math.max(1, session.cart.cutlets || 0),
-    } }); go('cart') }}>Добавить доступное в корзину</button></div>
+    <div className="sticky-action"><button className="button primary full" disabled={!available.length} onClick={() => { update({ cart: available.reduce((cart, product) => ({ ...cart, [product.id]: Math.max(1, cart[product.id] || 0) }), { ...session.cart }) }); go('cart') }}>Добавить из списка в корзину ({available.length})</button></div>
   </div>
 }
 
 function LoyaltyScreen() {
-  const [ready, setReady] = useState(false)
   return <div className="screen loyalty-screen">
     <Header title="Моя карта" />
-    <div className="loyalty-hero"><span className="loyalty-logo">А</span><small>Баланс карты</small><h1>1 240 <em>бонусов*</em></h1><div className="barcode"><i /><i /><i /><i /><i /><i /><i /><i /><i /></div><p>0000 2408 2026</p></div>
-    <div className="content-pad"><div className="loyalty-actions"><button aria-pressed={ready} onClick={() => setReady(!ready)}><QrCode /><b>{ready ? 'Карта готова к показу' : 'Показать кассиру'}</b></button><button onClick={() => go('offers')}><BadgePercent /><b>Мои акции</b></button></div>
+    <div className="loyalty-hero"><span className="loyalty-logo">А</span><small>Программа лояльности</small><h1>Баллы — в личном кабинете</h1><p>Баланс и код карты доступны в официальном сервисе. Этот прототип не подключён к вашему счёту.</p><a href="https://agrokomplexshop.ru/loyalty/" target="_blank" rel="noreferrer">Открыть программу <ArrowRight size={16} /></a></div>
+    <div className="content-pad"><div className="loyalty-actions"><button onClick={() => go('offers')}><BadgePercent /><b>Посмотреть товары</b></button></div>
       <div className="info-card"><Sparkles /><p><b>Как использовать баллы</b><br />По опубликованным правилам 10 баллов = 1 ₽; баллами можно оплатить до 30% чека.</p></div>
-      <div className="history-list"><h2>История операций</h2><p><span><b>Начисление</b><small>Регулярная корзина</small></span><strong>+48</strong></p><p><span><b>Списание</b><small>Фирменный магазин</small></span><strong>−120</strong></p></div>
-      <p className="fine-print">* Баланс не связан с реальной программой и показан только как состояние интерфейса.</p>
+      <p className="fine-print">История начислений также доступна только в официальном личном кабинете.</p>
     </div>
   </div>
 }
@@ -494,11 +502,16 @@ function OffersScreen({ add }: { add: (id: string, amount?: number) => void }) {
 }
 
 function ProfileScreen() {
+  const [profile, setProfile] = useState(() => { try { return JSON.parse(localStorage.getItem('agro-demo-profile') || '{}') as { name?: string; phone?: string } } catch { return {} as { name?: string; phone?: string } } })
+  const [name, setName] = useState(profile.name || '')
+  const [phone, setPhone] = useState(profile.phone || '')
+  const valid = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 11
   return <div className="screen profile-screen"><Header title="Покупки" />
-    <div className="content-pad"><div className="profile-card"><span><UserRound /></span><div><p className="eyebrow">Профиль</p><h1>Андрей</h1><p>+7 900 000-00-00</p></div></div>
+    <div className="content-pad"><div className="profile-card"><span><UserRound /></span><div><p className="eyebrow">Профиль</p><h1>{profile.name || 'Контакты не указаны'}</h1><p>{profile.phone || 'Сохраните имя и телефон для будущих заказов'}</p></div></div>
+      <form className="profile-edit" onSubmit={(event) => { event.preventDefault(); if (valid) { const value = { name: name.trim(), phone: phone.trim() }; localStorage.setItem('agro-demo-profile', JSON.stringify(value)); setProfile(value) } }}><label>Имя<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ваше имя" /></label><label>Телефон<input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" placeholder="+7 900 000-00-00" /></label><button className="button primary" disabled={!valid}>Сохранить контакты</button></form>
       <button className="menu-row" onClick={() => go('repeat')}><RefreshCcw /><span><b>История и повторы</b><small>Собрать прошлую корзину заново</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('shopping-list')}><ListChecks /><span><b>Списки покупок</b><small>Для онлайн-заказа и магазина</small></span><ChevronRight /></button>
-      <button className="menu-row" onClick={() => go('loyalty')}><Barcode /><span><b>Карта лояльности</b><small>Баланс, QR и история</small></span><ChevronRight /></button>
+      <button className="menu-row" onClick={() => go('loyalty')}><Barcode /><span><b>Карта лояльности</b><small>Правила и официальный сервис</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('location')}><MapPin /><span><b>Адреса и магазины</b><small>Контекст цен и наличия</small></span><ChevronRight /></button>
       <div className="info-card"><CircleAlert /><p>История заказов и список покупок сохраняются в этом браузере.</p></div>
     </div></div>

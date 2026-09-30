@@ -118,8 +118,29 @@ describe('ключевые сценарии прототипа', () => {
     window.location.hash = '#shopping-list'
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: 'Добавить доступное в корзину' }))
+    await user.click(screen.getByRole('button', { name: 'Добавить из списка в корзину (3)' }))
     expect(await screen.findByRole('heading', { name: 'Корзина' })).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart.milk).toBe(3)
+  })
+
+  it('не кладёт в корзину уже купленные позиции и сохраняет правку своего товара', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('agro-demo-session', JSON.stringify({
+      city: 'Краснодар', address: 'ул. Солнечная, 12', store: 'Краснодар', fulfillment: 'delivery',
+      cart: {}, substitution: null, slot: '18:00–20:00', listDone: ['Молоко', 'Хлеб', 'Готовый ужин'],
+      listCustom: ['Йогурт'],
+    }))
+    window.location.hash = '#shopping-list'
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Изменить Йогурт' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Изменить Йогурт' }))
+    await user.type(screen.getByRole('textbox', { name: 'Изменить Йогурт' }), 'Филе цыплёнка')
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await user.click(screen.getByRole('button', { name: 'Добавить из списка в корзину (1)' }))
+    const cart = JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart
+    expect(cart.chicken).toBe(1)
+    expect(cart.milk).toBeUndefined()
+    expect(cart.bread).toBeUndefined()
+    expect(cart.cutlets).toBeUndefined()
   })
 })

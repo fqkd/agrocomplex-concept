@@ -189,11 +189,33 @@ await scenario('контекст → замена → ошибка → восс�
 
 await scenario('список покупок → свой товар → отметка → очистка', async (page) => {
   await page.goto(`${base}/#shopping-list`, { waitUntil: 'networkidle' })
-  await page.getByLabel('Новый товар').fill('Зелень')
+  await page.getByLabel('Новый товар').fill('Йогурт')
   await page.getByRole('button', { name: 'Добавить', exact: true }).click()
-  await page.getByRole('button', { name: 'Отметить Зелень' }).click()
+  await page.getByRole('button', { name: 'Изменить Йогурт' }).click()
+  await page.getByRole('textbox', { name: 'Изменить Йогурт' }).fill('Филе цыплёнка')
+  await page.getByRole('button', { name: 'Сохранить' }).click()
+  await page.getByRole('button', { name: 'Отметить Молоко' }).click()
+  await page.getByRole('button', { name: 'Отметить Хлеб' }).click()
+  await page.getByRole('button', { name: 'Отметить Готовый ужин' }).click()
+  await page.getByRole('button', { name: 'Добавить из списка в корзину (1)' }).click()
+  const cart = await page.evaluate(() => JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart)
+  if (cart.chicken !== 1 || cart.milk || cart.bread || cart.cutlets) throw new Error('Корзина не соответствует неотмеченному списку')
+  await page.goto(`${base}/#shopping-list`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Очистить отмеченное и свои товары' }).click()
-  if (await page.getByText('Зелень').count()) throw new Error('Свой товар не очищен')
+  if (await page.getByText('Филе цыплёнка').count()) throw new Error('Свой товар не очищен')
+})
+
+await scenario('профиль сохраняет контакты; карта не показывает вымышленный баланс', async (page) => {
+  await page.goto(`${base}/#profile`, { waitUntil: 'networkidle' })
+  await page.getByPlaceholder('Ваше имя').fill('Мария')
+  await page.getByPlaceholder('+7 900 000-00-00').fill('+7 999 123-45-67')
+  await page.getByRole('button', { name: 'Сохранить контакты' }).click()
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'Мария' }).waitFor()
+  await page.goto(`${base}/#loyalty`, { waitUntil: 'networkidle' })
+  if (await page.getByText('1 240').count()) throw new Error('На карте показан вымышленный баланс')
+  const href = await page.getByRole('link', { name: 'Открыть программу' }).getAttribute('href')
+  if (href !== 'https://agrokomplexshop.ru/loyalty/') throw new Error('Неверная ссылка на официальную программу')
 })
 
 await scenario('прямые ссылки сохраняются после обновления', async (page) => {
