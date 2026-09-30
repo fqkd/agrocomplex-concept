@@ -452,7 +452,7 @@ function RepeatScreen({ orders, update }: { orders: OrderRecord[]; update: (p: P
   return <div className="screen">
     <Header title="Повторить покупки" />
     <div className="content-pad">
-      <div className="repeat-head"><span><RefreshCcw /></span><div><p className="eyebrow">{selected ? 'История заказов' : 'Пример сценария'}</p><h1>{selected ? 'Повторить выбранный заказ' : 'Как работает повтор корзины'}</h1><p>Перед добавлением проверим цены и наличие для выбранной точки.</p></div></div>
+      <div className="repeat-head"><span><RefreshCcw /></span><div><p className="eyebrow">{selected ? 'История заказов' : 'До первого заказа'}</p><h1>{selected ? 'Повторить выбранный заказ' : 'Как работает повтор корзины'}</h1><p>Посмотрите, какие позиции доступны, а для каких потребуется замена.</p></div></div>
       {orders.length > 1 && <div className="repeat-order-list">{orders.map((order) => <button className={'choice-card ' + (order.id === selected?.id ? 'selected' : '')} key={order.id} onClick={() => setSelectedId(order.id)}><span><b>{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }).format(new Date(order.createdAt))}</b><small>{Object.values(order.cart).reduce((sum, count) => sum + count, 0)} ед. · {order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}</small></span></button>)}</div>}
       {!selected && <div className="context-note"><CircleAlert /><p>После первого заказа здесь появится ваша история. Пока можно посмотреть, как собирается повторная корзина.</p></div>}
       <div className="comparison"><div><small>В заказе</small><b>{entries.length} позиций · {units} ед.</b></div><ArrowRight /><div><small>Для повтора</small><b>Доступно: {available} · замена: {unavailable}</b></div></div>
