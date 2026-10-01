@@ -23,9 +23,11 @@ button { color: inherit; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #95bd35; outline-offset: 2px; }
 
 .app-stage {
-  min-height: 100vh;
+  height: 100dvh;
   display: flex;
   justify-content: center;
+  align-items: center;
+  overflow: hidden;
   background:
     radial-gradient(circle at 14% 20%, rgba(255,255,255,.85) 0 2px, transparent 3px),
     linear-gradient(135deg, #dce5d5, #f1ead4 55%, #cfdcc7);
@@ -35,15 +37,17 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .phone-shell {
   width: 100%;
   max-width: 430px;
-  min-height: 100vh;
+  height: 100dvh;
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--paper);
-  overflow-x: clip;
+  overflow: hidden;
   box-shadow: 0 0 60px rgba(25, 54, 39, .18);
 }
 
-.screen { min-height: 100vh; padding: calc(30px + env(safe-area-inset-top)) 0 108px; background: var(--paper); }
-.screen:has(.sticky-action) { padding-bottom: 118px; }
+.screen { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: calc(30px + env(safe-area-inset-top)) 0 28px; background: var(--paper); }
+.screen:has(.sticky-action) { padding-bottom: 0; }
 .demo-ribbon {
   height: calc(30px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); position: absolute; inset: 0 0 auto; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--green-deep); color: #eef7d9; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
@@ -154,7 +158,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .store-option b { font-size: 11px; }.store-option small { font-size: 8px; color: var(--muted); }.store-option > svg { width: 18px; color: var(--green); }
 .map-dot, .row-icon { width: 40px; height: 40px; border-radius: 13px; background: #e9f1e3; display: grid; place-items: center; color: var(--green); }
 .map-dot svg { width: 18px; }
-.sticky-action { position: fixed; z-index: 25; bottom: 0; width: min(430px, 100%); padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: rgba(255,253,248,.94); border-top: 1px solid var(--line); backdrop-filter: blur(15px); }
+.sticky-action { position: sticky; z-index: 25; bottom: 0; width: 100%; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: rgba(255,253,248,.94); border-top: 1px solid var(--line); backdrop-filter: blur(15px); }
 .sticky-action.split { display: grid; gap: 8px; }
 
 .catalog-screen { padding-bottom: 108px; }
@@ -244,14 +248,13 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .profile-edit .button { width: 100%; }
 .menu-row { width: 100%; min-height: 70px; display: grid; grid-template-columns: 32px 1fr 18px; gap: 10px; align-items: center; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }.menu-row > svg:first-child { width: 20px; color: var(--green); }.menu-row span { display: grid; gap: 3px; }.menu-row b { font-size: 11px; }.menu-row small { font-size: 8px; color: var(--muted); }.menu-row > svg:last-child { width: 17px; }
 
-.bottom-nav { position: fixed; z-index: 30; bottom: 0; width: min(430px, 100%); min-height: 72px; padding: 7px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,253,248,.96); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5,1fr); backdrop-filter: blur(16px); }
+.bottom-nav { position: relative; flex: 0 0 auto; z-index: 30; width: 100%; min-height: 72px; padding: 7px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,253,248,.96); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5,1fr); backdrop-filter: blur(16px); }
 .bottom-nav button { border: 0; background: transparent; min-width: 0; display: grid; place-items: center; align-content: center; gap: 3px; color: #839087; cursor: pointer; }.bottom-nav button > span { position: relative; }.bottom-nav svg { width: 20px; height: 20px; }.bottom-nav small { font-size: 8px; }.bottom-nav button.active { color: var(--green); font-weight: 800; }.bottom-nav em { position: absolute; right: -10px; top: -7px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 99px; background: var(--orange); color: white; display: grid; place-items: center; font-size: 7px; font-style: normal; }
 
 @media (min-width: 520px) {
-  .phone-shell { min-height: calc(100vh - 36px); margin: 18px 0; border-radius: 30px; border: 8px solid #18392b; overflow: clip; }
-  .screen { min-height: calc(100vh - 52px); }
+  .phone-shell { height: min(844px, calc(100dvh - 36px)); border-radius: 30px; border: 8px solid #18392b; }
   .demo-ribbon { border-radius: 20px 20px 0 0; }
-  .bottom-nav, .sticky-action { width: 414px; bottom: 26px; }
+  .bottom-nav, .sticky-action { width: 100%; }
   .phone-shell:not(:has(.bottom-nav)) .sticky-action { border-radius: 0 0 20px 20px; }
 }
 

@@ -109,7 +109,7 @@ function Repeat() {
 function Recover() {
   return <Slide id="recover" number="06" eyebrow="Ключевой сценарий № 3" title="Ошибка оплаты не обнуляет уже принятые решения" lead="Сценарий недоступности банка показывает восстановление без повторного сбора корзины.">
     <div className="recover-grid"><div className="recover-phone" aria-label="Макет состояния ошибки"><span className="error-symbol"><CircleAlert /></span><h3>Платёж не завершён</h3><p>Корзина, адрес, время и замена сохранены</p><div><Check /> 4 параметра готовы</div><span className="mock-button">Повторить оплату</span></div><div className="saved-flow"><Saved icon={<ShoppingBasket />} title="Товары" /><Saved icon={<MapPin />} title="Адрес" /><Saved icon={<Clock3 />} title="Время" /><Saved icon={<PackageCheck />} title="Замена" /><ArrowDown /><strong>Возврат к оплате</strong></div></div>
-    <div className="dual-actions"><a className="case-button dark" href="../#payment-error">Открыть восстановление <ArrowRight /></a><a className="case-button outline" href="../#substitution">Выбрать замену</a></div>
+    <div className="dual-actions"><a className="case-button dark" href="../#catalog">Собрать корзину и проверить <ArrowRight /></a><a className="case-button outline" href="../#product:cheese">Добавить товар для замены</a></div>
   </Slide>
 }
 

@@ -34,12 +34,11 @@ describe('ключевые сценарии прототипа', () => {
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1 })
   })
 
-  it('повторяет корзину и ведёт к выбору замены', async () => {
-    const user = userEvent.setup()
+  it('не создаёт демонстрационный повтор без истории заказов', async () => {
     window.location.hash = '#repeat'
     render(<App />)
-    await user.click(screen.getByRole('button', { name: 'Добавить и проверить наличие' }))
-    expect(await screen.findByRole('heading', { name: 'Замена товара' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Пока нечего повторять' })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({})
   })
 
   it('проходит основной путь через замену, ошибку и успешное восстановление', async () => {
@@ -70,24 +69,23 @@ describe('ключевые сценарии прототипа', () => {
     expect(await screen.findByText('Доставка подтверждена')).toBeInTheDocument()
   })
 
-  it('открывает прямую ссылку ошибки с подготовленным демонстрационным состоянием', async () => {
+  it('прямая ссылка ошибки не создаёт корзину и заказ', async () => {
     window.location.hash = '#payment-error'
     render(<App />)
 
-    expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
-    expect(screen.getByText('4 параметра сохранены')).toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 2, bread: 1, cutlets: 1, cheese: 1 })
+    expect(await screen.findByRole('heading', { name: 'Платёж не начинался' })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({})
   })
 
-  it('удаляет отсутствующую позицию при выборе варианта без замены', async () => {
+  it('не добавляет товар по прямой ссылке выбора замены', async () => {
     const user = userEvent.setup()
     window.location.hash = '#substitution'
     render(<App />)
 
-    await user.click(await screen.findByRole('button', { name: /Убрать из заказа/ }))
-    await user.click(screen.getByRole('button', { name: 'Сохранить правило замены' }))
+    expect(await screen.findByRole('heading', { name: 'Позиции для замены нет' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Открыть корзину' }))
     expect(await screen.findByText('Корзина пока пустая')).toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart.cheese).toBe(0)
+    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({})
   })
 
   it('не позволяет продолжить доставку с пустым адресом', async () => {

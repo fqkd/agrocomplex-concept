@@ -21,6 +21,7 @@ type Session = {
   fulfillment: 'delivery' | 'pickup'
   cart: Record<string, number>
   substitution: string | null
+  paymentError: boolean
   slot: string
   slotDate: string
   listDone: string[]
@@ -73,12 +74,11 @@ const initial: Session = {
   fulfillment: 'delivery',
   cart: {},
   substitution: null,
+  paymentError: false,
   ...recommendedSlot(),
   listDone: [],
   listCustom: [],
 }
-
-const scenarioCart: Record<string, number> = { milk: 2, bread: 1, cutlets: 1, cheese: 1 }
 
 const routeFromHash = (): { route: Route; id?: string; orderId?: string } => {
   const raw = window.location.hash.replace(/^#\/?/, '') || 'home'
@@ -91,23 +91,12 @@ const routeFromHash = (): { route: Route; id?: string; orderId?: string } => {
 const readSession = (): Session => {
   try {
     const restored = { ...initial, ...JSON.parse(localStorage.getItem('agro-demo-session') || '{}') } as Session
+    restored.paymentError = Boolean(restored.paymentError)
     restored.address = restored.address.replace('Демо-адрес · ', '')
     if (!normalizedStores.some((store) => store.id === restored.storeId)) {
       const match = normalizedStores.find((store) => store.address === restored.store)
       restored.storeId = match?.id ?? normalizedStores[0].id
       restored.store = match?.address ?? normalizedStores[0].address
-    }
-    const { route } = routeFromHash()
-    const cartCount = Object.values(restored.cart).reduce((sum, count) => sum + count, 0)
-
-    // Direct links from the case must open a meaningful state, even in a clean browser.
-    if (route === 'substitution' && !restored.cart.cheese) {
-      restored.cart = { ...restored.cart, cheese: 1 }
-      restored.substitution = null
-    }
-    if (['checkout', 'payment-error'].includes(route) && cartCount === 0) {
-      restored.cart = { ...scenarioCart }
-      restored.substitution = 'alt'
     }
     return restored
   } catch {
@@ -147,8 +136,8 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    const shell = document.querySelector('.phone-shell')
-    if (shell && 'scrollTo' in shell && typeof shell.scrollTo === 'function') shell.scrollTo({ top: 0, behavior: 'auto' })
+    const screen = document.querySelector('.phone-shell > .screen')
+    if (screen && 'scrollTo' in screen && typeof screen.scrollTo === 'function') screen.scrollTo({ top: 0, behavior: 'auto' })
   }, [location.route, location.id])
 
   useEffect(() => {
@@ -157,9 +146,11 @@ export function App() {
   useEffect(() => localStorage.setItem('agro-demo-orders', JSON.stringify(orders)), [orders])
 
   const confirmOrder = () => {
+    if (!Object.values(session.cart).some((count) => count > 0) || !session.paymentError) return
     const id = crypto.randomUUID()
     const order: OrderRecord = { id, createdAt: new Date().toISOString(), cart: { ...session.cart }, fulfillment: session.fulfillment, slotDate: session.slotDate, slot: session.slot }
     setOrders((current) => [order, ...current])
+    setSession((current) => ({ ...current, paymentError: false }))
     go(`success?id=${id}`)
   }
 
@@ -181,9 +172,9 @@ export function App() {
       case 'location': content = <LocationScreen session={session} update={update} />; break
       case 'catalog': content = <CatalogScreen session={session} add={add} />; break
       case 'cart': content = <CartScreen session={session} add={add} />; break
-      case 'substitution': content = <SubstitutionScreen session={session} update={update} />; break
-      case 'checkout': content = <CheckoutScreen session={session} update={update} />; break
-      case 'payment-error': content = <PaymentError session={session} onRetry={confirmOrder} />; break
+      case 'substitution': content = session.cart.cheese > 0 ? <SubstitutionScreen session={session} update={update} /> : <UnavailableFlow title="Позиции для замены нет" action="Открыть корзину" target="cart" />; break
+      case 'checkout': content = cartCount > 0 ? <CheckoutScreen session={session} update={update} /> : <UnavailableFlow title="Корзина пока пустая" action="Открыть каталог" target="catalog" />; break
+      case 'payment-error': content = cartCount > 0 && session.paymentError ? <PaymentError session={session} onRetry={confirmOrder} /> : <UnavailableFlow title="Платёж не начинался" action="Открыть корзину" target="cart" />; break
       case 'success': content = <SuccessScreen order={orders.find((order) => order.id === location.orderId)} clear={() => update({ cart: {}, substitution: null })} />; break
       case 'repeat': content = <RepeatScreen orders={orders} update={update} />; break
       case 'shopping-list': content = <ShoppingListScreen session={session} update={update} />; break
@@ -203,6 +194,10 @@ export function App() {
       </div>
     </main>
   )
+}
+
+function UnavailableFlow({ title, action, target }: { title: string; action: string; target: string }) {
+  return <div className="screen status-screen"><Header title="Заказ" /><div className="status-content"><span className="status-icon error"><CircleAlert /></span><h1>{title}</h1><p>Выберите товары, чтобы продолжить оформление.</p></div><div className="sticky-action"><button className="button primary full" onClick={() => go(target)}>{action}</button></div></div>
 }
 
 function Header({ title, back = true, action }: { title: string; back?: boolean; action?: ReactNode }) {
@@ -397,7 +392,7 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
   useEffect(() => sessionStorage.setItem('agro-checkout-contacts', JSON.stringify({ name, phone })), [name, phone])
   const deliveryCost = session.fulfillment === 'delivery' && total < 1500 ? 300 : 0
   const units = Object.values(session.cart).reduce((a, b) => a + b, 0)
-  const valid = name.trim().length > 1 && phone.replace(/\D/g, '').length >= 11 && isSlotAvailable(session.slotDate, session.slot, now) && Boolean(session.fulfillment === 'delivery' ? session.address : session.storeId)
+  const valid = units > 0 && name.trim().length > 1 && phone.replace(/\D/g, '').length >= 11 && isSlotAvailable(session.slotDate, session.slot, now) && Boolean(session.fulfillment === 'delivery' ? session.address : session.storeId)
   return <div className="screen checkout-screen">
     <Header title="Оформление" />
     <div className="content-pad">
@@ -416,7 +411,7 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
       <section className="checkout-items"><h2>Состав заказа</h2>{items.map(({ product, count }) => <p key={product.id}><span>{product.name} × {count}</span><b>{money(product.price * count)}</b></p>)}{session.cart.cheese > 0 && session.substitution && <small>Если сыра не будет: {session.substitution === 'alt' ? 'заменить на российский молодой' : session.substitution === 'contact' ? 'согласовать замену со мной' : 'убрать из заказа'}. Итоговая стоимость может измениться.</small>}</section>
       <div className="receipt compact"><p><span>{Object.keys(session.cart).filter((id) => session.cart[id] > 0).length} товара · {units} единиц</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + deliveryCost)}</b></p></div>
     </div>
-    <div className="sticky-action"><button className="button primary full" disabled={!valid} onClick={() => go('payment-error')}>Перейти к оплате · {money(total + deliveryCost)}</button></div>
+    <div className="sticky-action"><button className="button primary full" disabled={!valid} onClick={() => { update({ paymentError: true }); go('payment-error') }}>Перейти к оплате · {money(total + deliveryCost)}</button></div>
   </div>
 }
 
@@ -444,7 +439,8 @@ function SuccessScreen({ order, clear }: { order?: OrderRecord; clear: () => voi
 function RepeatScreen({ orders, update }: { orders: OrderRecord[]; update: (p: Partial<Session>) => void }) {
   const [selectedId, setSelectedId] = useState(orders[0]?.id || '')
   const selected = orders.find((order) => order.id === selectedId) || orders[0]
-  const repeat = selected?.cart || scenarioCart
+  if (!selected) return <UnavailableFlow title="Пока нечего повторять" action="Открыть каталог" target="catalog" />
+  const repeat = selected.cart
   const entries = Object.entries(repeat).filter(([id, count]) => count > 0 && products.some((product) => product.id === id))
   const available = entries.filter(([id]) => products.find((product) => product.id === id)?.available !== false).length
   const unavailable = entries.length - available

@@ -221,6 +221,8 @@ await scenario('профиль сохраняет контакты; карта �
   await page.getByRole('button', { name: 'Сохранить контакты' }).click()
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('heading', { name: 'Мария' }).waitFor()
+  await page.goto(`${base}/#catalog`, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Добавить Молоко 3,2%' }).click()
   await page.goto(`${base}/#checkout`, { waitUntil: 'networkidle' })
   if (await page.getByLabel('Имя получателя').inputValue() !== 'Мария') throw new Error('Контакты профиля не подставлены в оформление')
   await page.goto(`${base}/#loyalty`, { waitUntil: 'networkidle' })
@@ -231,7 +233,7 @@ await scenario('профиль сохраняет контакты; карта �
 
 await scenario('низ профиля прокручивается выше навигации', async (page) => {
   await page.goto(`${base}/#profile`, { waitUntil: 'networkidle' })
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  await page.evaluate(() => { const screen = document.querySelector('.phone-shell > .screen'); if (screen) screen.scrollTop = screen.scrollHeight })
   const gap = await page.evaluate(() => {
     const last = document.querySelector('.profile-screen .info-card')?.getBoundingClientRect()
     const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect()
@@ -251,7 +253,7 @@ await scenario('прямые ссылки сохраняются после об
 await scenario('ссылки презентации и контакты', async (page) => {
   await page.goto(`${base}/case/`, { waitUntil: 'networkidle' })
   const hrefs = await page.locator('a[href]').evaluateAll((items) => items.map((item) => item.getAttribute('href')).filter(Boolean))
-  for (const expected of ['../#location', '../#repeat', '../#payment-error', 'mailto:hello@eh.works', 'https://eh.works', 'https://t.me/andrey_ergohaven', 'https://max.ru/id5041212966_biz']) {
+  for (const expected of ['../#location', '../#repeat', '../#catalog', '../#product:cheese', 'mailto:hello@eh.works', 'https://eh.works', 'https://t.me/andrey_ergohaven', 'https://max.ru/id5041212966_biz']) {
     if (!hrefs.includes(expected)) throw new Error(`В презентации нет ссылки ${expected}`)
   }
   for (const href of [...new Set(hrefs.filter((value) => value.startsWith('../#')))]) {
