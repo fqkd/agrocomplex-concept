@@ -131,6 +131,13 @@
   border-color: #e7522d;
   box-shadow: 0 0 0 2px rgba(231, 82, 45, 0.12);
 }
+.eh-location-list > .eh-show-more {
+  justify-content: center;
+  min-height: 46px;
+  border-style: dashed;
+  color: #174e35;
+  font-weight: 700;
+}
 .eh-location-list span {
   min-width: 0;
 }

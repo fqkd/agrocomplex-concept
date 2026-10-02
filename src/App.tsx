@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   ArrowLeft, ArrowRight, BadgePercent, Barcode, Check, ChevronDown, ChevronRight,
   CircleAlert, Clock3, CreditCard, Heart, Home, ListChecks, LoaderCircle, MapPin,
@@ -53,17 +53,17 @@ const readProfile = (): { name: string; phone: string } => {
 
 const normalizeStoreText = (value = '') => value
   .replace(/\s+/g, ' ')
-  .replace(/\bг\.\s*/gi, '')
-  .replace(/\b(ул|пр|пер|пл|д|кв)\.\s*/gi, '$1. ')
+  .replace(/^г\.\s*/i, '')
+  .replace(/(^|\s)(ул|пр|пер|пл|д|кв)\.\s*/gi, '$1$2. ')
   .replace(/\s*,\s*/g, ', ')
-  .replace(/\s*:\s*/g, ':')
+  .replace(/(\d{2}:\d{2})-(\d{2}:\d{2})/g, '$1–$2')
   .trim()
 
 const normalizedStores = agroStores.map((store) => ({
   ...store,
   city: normalizeStoreText(store.city),
   address: normalizeStoreText(store.address),
-  meta: normalizeStoreText(store.meta).replace(/, выходные: Без выходных/gi, ' · без выходных'),
+  meta: normalizeStoreText(store.meta).replace(/,\s*выходные:\s*Без выходных/gi, ' · ежедневно') + (store.id === 'agro-9190' ? ' · Адрес в локаторе требует уточнения' : ''),
 }))
 
 const initial: Session = {
@@ -257,9 +257,9 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
   const [selectedStoreId, setSelectedStoreId] = useState(session.storeId)
   const [storeValid, setStoreValid] = useState(true)
   const cityNeedle = city.toLocaleLowerCase('ru').replace('ё', 'е')
-  const stores = city === 'Все точки'
+  const stores = useMemo(() => city === 'Все точки'
     ? normalizedStores
-    : normalizedStores.filter((store) => [store.city, store.address].some((value) => value?.toLocaleLowerCase('ru').replace('ё', 'е').includes(cityNeedle)))
+    : normalizedStores.filter((store) => [store.city, store.address].some((value) => value?.toLocaleLowerCase('ru').replace('ё', 'е').includes(cityNeedle))), [city, cityNeedle])
   const selectedPoint = stores.find((store) => store.id === selectedStoreId)
   return <div className="screen">
     <Header title="Как получите покупки?" />
@@ -278,6 +278,7 @@ function LocationScreen({ session, update }: { session: Session; update: (p: Par
         <div className="notice"><Clock3 /><span><b>Ближайший интервал</b><small>{formatSlot(nextSlot.slotDate, nextSlot.slot)}</small></span></div>
       </> : <>
         <LocationMap
+          key={city}
           points={stores}
           selectedId={selectedPoint?.id ?? ''}
           onSelect={(store) => setSelectedStoreId(store.id)}
