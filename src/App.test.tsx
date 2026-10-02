@@ -15,14 +15,14 @@ describe('ключевые сценарии прототипа', () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(screen.getByText('ул. Солнечная, 12'))
-    await user.click(screen.getByRole('button', { name: 'Показать доступный каталог' }))
+    await user.click(screen.getByRole('button', { name: 'Продолжить с демо-каталогом' }))
     expect(await screen.findByRole('heading', { name: 'Каталог' })).toBeInTheDocument()
   })
 
   it('сохраняет корзину после демонстрационной ошибки оплаты', async () => {
     const user = userEvent.setup()
     localStorage.setItem('agro-demo-session', JSON.stringify({
-      city: 'Краснодар', address: 'Демо-адрес', store: 'Демо-магазин', fulfillment: 'delivery',
+      city: 'Краснодар', address: 'ул. Солнечная, 12', store: 'Демо-магазин', fulfillment: 'delivery',
       cart: { milk: 1 }, substitution: 'alt', slot: '18:00–20:00', listDone: [],
     }))
     window.location.hash = '#checkout'
@@ -30,6 +30,7 @@ describe('ключевые сценарии прототипа', () => {
     await user.type(screen.getByLabelText('Имя получателя'), 'Мария')
     await user.type(screen.getByLabelText('Телефон'), '+7 999 123-45-67')
     await user.click(screen.getByRole('button', { name: /Перейти к оплате/ }))
+    await user.click(screen.getByRole('button', { name: 'Показать ошибку оплаты' }))
     expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1 })
   })
@@ -46,7 +47,7 @@ describe('ключевые сценарии прототипа', () => {
     render(<App />)
 
     await user.click(screen.getByText('ул. Солнечная, 12'))
-    await user.click(screen.getByRole('button', { name: 'Показать доступный каталог' }))
+    await user.click(screen.getByRole('button', { name: 'Продолжить с демо-каталогом' }))
     expect(await screen.findByRole('heading', { name: 'Каталог' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Добавить Молоко 3,2%' }))
     await user.click(screen.getByRole('button', { name: 'Открыть Сыр сливочный' }))
@@ -63,10 +64,17 @@ describe('ключевые сценарии прототипа', () => {
     await user.type(screen.getByLabelText('Имя получателя'), 'Мария')
     await user.type(screen.getByLabelText('Телефон'), '+7 999 123-45-67')
     await user.click(screen.getByRole('button', { name: /Перейти к оплате/ }))
+    await user.click(screen.getByRole('button', { name: 'Показать ошибку оплаты' }))
     expect(await screen.findByText('Платёж не завершён')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({ milk: 1, cheese: 1 })
     await user.click(screen.getByRole('button', { name: 'Повторить оплату' }))
-    expect(await screen.findByText('Доставка подтверждена')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Показать успешную оплату' }))
+    expect(await screen.findByText('Заказ сохранён')).toBeInTheDocument()
+    const saved = JSON.parse(localStorage.getItem('agro-demo-orders') || '[]')[0]
+    expect(saved.address).toBe('ул. Солнечная, 12')
+    expect(saved.payment).toBe('card')
+    expect(saved.contactName).toBe('Мария')
+    expect(saved.total).toBeGreaterThan(saved.subtotal)
   })
 
   it('прямая ссылка ошибки не создаёт корзину и заказ', async () => {
@@ -74,6 +82,13 @@ describe('ключевые сценарии прототипа', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Платёж не начинался' })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({})
+  })
+
+  it('прямая ссылка оплаты без подготовленного заказа не создаёт платёж', async () => {
+    window.location.hash = '#payment'
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Оформление не подготовлено' })).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart).toEqual({})
   })
 
@@ -94,7 +109,9 @@ describe('ключевые сценарии прототипа', () => {
     render(<App />)
 
     await user.clear(screen.getByLabelText('Адрес доставки'))
-    expect(screen.getByRole('button', { name: 'Показать доступный каталог' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Продолжить с демо-каталогом' })).toBeDisabled()
+    await user.type(screen.getByLabelText('Адрес доставки'), 'абракадабра')
+    expect(screen.getByRole('button', { name: 'Продолжить с демо-каталогом' })).toBeDisabled()
   })
 
   it('показывает загрузку и пустой результат поиска', async () => {
@@ -114,7 +131,7 @@ describe('ключевые сценарии прототипа', () => {
   it('добавляет список покупок, не уменьшая уже выбранное количество', async () => {
     const user = userEvent.setup()
     localStorage.setItem('agro-demo-session', JSON.stringify({ ...{
-      city: 'Краснодар', address: 'Демо-адрес', store: 'Демо-магазин', fulfillment: 'delivery',
+      city: 'Краснодар', address: 'ул. Солнечная, 12', store: 'Демо-магазин', fulfillment: 'delivery',
       substitution: null, slot: '18:00–20:00', listDone: [],
     }, cart: { milk: 3 } }))
     window.location.hash = '#shopping-list'
