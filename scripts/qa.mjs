@@ -213,7 +213,7 @@ await scenario('список покупок → свой товар → отме
   await page.getByRole('button', { name: 'Отметить Готовый ужин' }).click()
   await page.getByRole('button', { name: 'Добавить из списка в корзину (1)' }).click()
   const cart = await page.evaluate(() => JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart)
-  if (cart.chicken !== 1 || cart.milk || cart.bread || cart.cutlets) throw new Error('Корзина не соответствует неотмеченному списку')
+  if (cart.chicken !== 0.5 || cart.milk || cart.bread || cart.cutlets) throw new Error('Корзина не соответствует неотмеченному списку')
   await page.goto(`${base}/#shopping-list`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Снять отметки «Куплено»' }).click()
   if (!await page.getByText('Филе цыплёнка').count()) throw new Error('Свой товар удалён при очистке отметок')

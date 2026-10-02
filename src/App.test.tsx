@@ -11,6 +11,20 @@ describe('ключевые сценарии прототипа', () => {
     window.location.hash = '#home'
   })
 
+  it('сохраняет избранное и показывает его в каталоге после повторного открытия', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#product:milk'
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'В избранное' }))
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').favorites).toContain('milk'))
+    cleanup()
+    window.location.hash = '#profile'
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /Избранное/ }))
+    expect(await screen.findByRole('button', { name: 'Открыть Молоко 3,2%' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Открыть Хлеб пшеничный тостовый' })).not.toBeInTheDocument()
+  })
+
   it('открывает каталог после выбора контекста получения', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -114,13 +128,26 @@ describe('ключевые сценарии прототипа', () => {
     expect(screen.getByRole('button', { name: 'Продолжить с демо-каталогом' })).toBeDisabled()
   })
 
+  it('весовой товар меняется по 0,5 кг и не считается штуками', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#catalog'
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Добавить Бёдрышки цыплёнка гриль' }))
+    expect(await screen.findByText('0,5 кг')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Увеличить Бёдрышки цыплёнка гриль' }))
+    expect(await screen.findByText('1 кг')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Уменьшить Бёдрышки цыплёнка гриль' }))
+    expect(await screen.findByText('0,5 кг')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart.cutlets).toBe(0.5)
+  })
+
   it('показывает загрузку и пустой результат поиска', async () => {
     const user = userEvent.setup()
     window.location.hash = '#catalog'
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Обновить наличие' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Проверяем наличие')
+    expect(screen.getByRole('status')).toHaveTextContent('Обновляем демо-каталог')
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
     await user.type(screen.getByLabelText('Поиск продуктов'), 'несуществующий товар')
     expect(await screen.findByText('Ничего не нашли')).toBeInTheDocument()
@@ -157,7 +184,7 @@ describe('ключевые сценарии прототипа', () => {
     await user.click(screen.getByRole('button', { name: 'Сохранить' }))
     await user.click(screen.getByRole('button', { name: 'Добавить из списка в корзину (1)' }))
     const cart = JSON.parse(localStorage.getItem('agro-demo-session') || '{}').cart
-    expect(cart.chicken).toBe(1)
+    expect(cart.chicken).toBe(0.5)
     expect(cart.milk).toBeUndefined()
     expect(cart.bread).toBeUndefined()
     expect(cart.cutlets).toBeUndefined()

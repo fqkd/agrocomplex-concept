@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { LocationMap } from './LocationMap'
 import { agroStores } from './agroStores'
-import { categoryLabels, money, products, type Product } from './data'
+import { categoryLabels, money, products, quantityLabel, unitPrice, type Product } from './data'
 import { formatSlot, isSlotAvailable, recommendedSlot, slotDateKey, slotTimes } from './slots'
 
 type Route = 'home' | 'location' | 'catalog' | 'cart' | 'substitution' | 'checkout' | 'payment' |
@@ -20,6 +20,7 @@ type Session = {
   storeId: string
   fulfillment: 'delivery' | 'pickup'
   cart: Record<string, number>
+  favorites: string[]
   substitution: string | null
   paymentError: boolean
   slot: string
@@ -90,6 +91,7 @@ const initial: Session = {
   storeId: normalizedStores[0].id,
   fulfillment: 'delivery',
   cart: {},
+  favorites: [],
   substitution: null,
   paymentError: false,
   ...recommendedSlot(),
@@ -111,6 +113,7 @@ const readSession = (): Session => {
   try {
     const restored = { ...initial, ...JSON.parse(localStorage.getItem('agro-demo-session') || '{}') } as Session
     restored.paymentError = Boolean(restored.paymentError)
+    restored.favorites = Array.isArray(restored.favorites) ? restored.favorites.filter((id): id is string => typeof id === 'string' && products.some((product) => product.id === id)) : []
     restored.address = restored.address.replace('Демо-адрес · ', '')
     if (!normalizedStores.some((store) => store.id === restored.storeId)) {
       const match = normalizedStores.find((store) => store.address === restored.store)
@@ -179,18 +182,21 @@ export function App() {
   const update = (patch: Partial<Session>) => setSession((current) => ({ ...current, ...patch, ...(['cart', 'address', 'storeId', 'fulfillment', 'slot', 'slotDate', 'substitution', 'checkoutPayment'].some((key) => key in patch) ? { pendingOrder: null, paymentError: false } : {}) }))
   const add = (id: string, amount = 1) => setSession((current) => {
     const currentCount = current.cart[id] || 0
+    const product = products.find((entry) => entry.id === id)
+    const step = product?.unit === 'kg' ? 0.5 : 1
     return {
       ...current,
-      cart: { ...current.cart, [id]: Math.max(0, currentCount + amount) },
+      cart: { ...current.cart, [id]: Math.max(0, Math.min(product?.unit === 'kg' ? 5 : 99, currentCount + amount * step)) },
       substitution: id === 'cheese' && amount > 0 && currentCount === 0 ? null : current.substitution,
       pendingOrder: null,
       paymentError: false,
     }
   })
-  const cartCount = Object.values(session.cart).reduce((sum, count) => sum + count, 0)
+  const cartCount = Object.values(session.cart).filter((count) => count > 0).length
+  const toggleFavorite = (id: string) => setSession((current) => ({ ...current, favorites: current.favorites.includes(id) ? current.favorites.filter((entry) => entry !== id) : [...current.favorites, id] }))
 
   let content: ReactNode
-  if (location.id) content = <ProductScreen product={products.find((p) => p.id === location.id) || products[0]} count={session.cart[location.id] || 0} add={add} />
+  if (location.id) content = <ProductScreen product={products.find((p) => p.id === location.id) || products[0]} count={session.cart[location.id] || 0} liked={session.favorites.includes(location.id)} toggleFavorite={toggleFavorite} add={add} />
   else {
     switch (location.route) {
       case 'location': content = <LocationScreen session={session} update={update} />; break
@@ -204,8 +210,8 @@ export function App() {
       case 'repeat': content = <RepeatScreen orders={orders} update={update} />; break
       case 'shopping-list': content = <ShoppingListScreen session={session} update={update} />; break
       case 'loyalty': content = <LoyaltyScreen />; break
-      case 'offers': content = <OffersScreen add={add} />; break
-      case 'profile': content = <ProfileScreen />; break
+      case 'offers': content = <OffersScreen session={session} add={add} />; break
+      case 'profile': content = <ProfileScreen favorites={session.favorites} />; break
       default: content = <HomeScreen session={session} orders={orders} add={add} />
     }
   }
@@ -260,7 +266,7 @@ function HomeScreen({ session, orders, add }: { session: Session; orders: OrderR
       <button className="category-tile ready" onClick={() => go('catalog?ready')}><span><Soup /></span><b>Наша кухня</b><small>Готово к столу</small></button>
     </div>
     <SectionTitle title="Что добавить" action="Смотреть подборку" onClick={() => go('offers')} />
-    <div className="product-row">{products.slice(0, 3).map((p) => <ProductCard key={p.id} product={p} add={add} />)}</div>
+    <div className="product-row">{products.slice(0, 3).map((p) => <ProductCard key={p.id} product={p} count={session.cart[p.id] || 0} add={add} />)}</div>
   </div>
 }
 
@@ -327,37 +333,36 @@ function ProductArt({ product, compact = false }: { product: Product; compact?: 
 
 function CatalogScreen({ session, add }: { session: Session; add: (id: string, amount?: number) => void }) {
   const hashQuery = window.location.hash.split('?')[1]
-  const [category, setCategory] = useState(hashQuery && categoryLabels[hashQuery] ? hashQuery : 'all')
+  const [category, setCategory] = useState(hashQuery === 'favorites' || (hashQuery && categoryLabels[hashQuery]) ? hashQuery : 'all')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
-  const visible = products.filter((p) => p.id !== 'cheese-alt' && (category === 'all' || p.category === category || (category === 'own' && p.badge?.includes('Своё'))) && p.name.toLowerCase().includes(query.toLowerCase()))
+  const visible = products.filter((p) => p.id !== 'cheese-alt' && (category === 'all' || (category === 'favorites' && session.favorites.includes(p.id)) || p.category === category || (category === 'own' && p.badge?.includes('Своё'))) && p.name.toLowerCase().includes(query.toLowerCase()))
   const refresh = () => { setLoading(true); setTimeout(() => setLoading(false), 650) }
   return <div className="screen catalog-screen">
     <Header title="Каталог" action={<button className="icon-btn" aria-label="Обновить наличие" onClick={refresh}><RefreshCcw /></button>} />
     <button className="catalog-context" onClick={() => go('location')}><MapPin /><span><small>{session.city}</small><b>{session.fulfillment === 'delivery' ? session.address : session.store}</b></span><ChevronRight /></button>
     <div className="search-box"><Search /><input placeholder="Найти продукт" aria-label="Поиск продуктов" value={query} onChange={(e) => setQuery(e.target.value)} />{query && <button aria-label="Очистить поиск" onClick={() => setQuery('')}><X /></button>}</div>
-    <div className="chips horizontal">{Object.entries(categoryLabels).map(([id, label]) => <button key={id} className={category === id ? 'selected' : ''} onClick={() => setCategory(id)}>{label}</button>)}</div>
-    {loading ? <div className="loading-state" role="status"><LoaderCircle className="spin" /><b>Проверяем наличие</b><small>Для выбранного адреса</small></div> : visible.length ? <div className="catalog-grid">{visible.map((p) => <ProductCard key={p.id} product={p} add={add} />)}</div> : <div className="empty-state"><Search /><h2>Ничего не нашли</h2><p>Попробуйте изменить запрос или открыть все категории.</p><button className="button secondary" onClick={() => { setQuery(''); setCategory('all') }}>Сбросить фильтры</button></div>}
+    <div className="chips horizontal">{[...Object.entries(categoryLabels), ['favorites', 'Избранное']].map(([id, label]) => <button key={id} className={category === id ? 'selected' : ''} onClick={() => setCategory(id)}>{label}</button>)}</div>
+    {loading ? <div className="loading-state" role="status"><LoaderCircle className="spin" /><b>Обновляем демо-каталог</b><small>Реальные остатки не подключены</small></div> : visible.length ? <div className="catalog-grid">{visible.map((p) => <ProductCard key={p.id} product={p} count={session.cart[p.id] || 0} add={add} />)}</div> : <div className="empty-state"><Search /><h2>Ничего не нашли</h2><p>Попробуйте изменить запрос или открыть все категории.</p><button className="button secondary" onClick={() => { setQuery(''); setCategory('all') }}>Сбросить фильтры</button></div>}
   </div>
 }
 
-function ProductCard({ product, add }: { product: Product; add: (id: string, amount?: number) => void }) {
+function ProductCard({ product, count, add }: { product: Product; count: number; add: (id: string, amount?: number) => void }) {
   return <article className={'product-card ' + (!product.available && product.available !== undefined ? 'unavailable' : '')}>
     <button className="product-visual" style={{ background: product.tone }} onClick={() => go(`product:${product.id}`)} aria-label={`Открыть ${product.name}`}><ProductArt product={product} />{product.badge && <em>{product.badge}</em>}</button>
     <button className="product-name" onClick={() => go(`product:${product.id}`)}><b>{product.name}</b><small>{product.detail}</small></button>
-    <div className="price-row"><span><b>{money(product.price)}</b>{product.oldPrice && <del>{money(product.oldPrice)}</del>}</span>{product.available === false ? <small className="out">Нет в точке</small> : <button className="add-btn" aria-label={`Добавить ${product.name}`} onClick={() => add(product.id)}><Plus /></button>}</div>
+    <div className="price-row"><span><b>{unitPrice(product)}</b>{product.oldPrice && <del>{money(product.oldPrice)}</del>}</span>{product.available === false ? <small className="out">Недоступно в демо</small> : count ? <div className="counter"><button aria-label={`Уменьшить ${product.name}`} onClick={() => add(product.id, -1)}><Minus /></button><b>{quantityLabel(product, count)}</b><button aria-label={`Увеличить ${product.name}`} onClick={() => add(product.id)}><Plus /></button></div> : <button className="add-btn" aria-label={`Добавить ${product.name}`} onClick={() => add(product.id)}><Plus /></button>}</div>
   </article>
 }
 
-function ProductScreen({ product, count, add }: { product: Product; count: number; add: (id: string, amount?: number) => void }) {
-  const [liked, setLiked] = useState(false)
+function ProductScreen({ product, count, liked, toggleFavorite, add }: { product: Product; count: number; liked: boolean; toggleFavorite: (id: string) => void; add: (id: string, amount?: number) => void }) {
   return <div className="screen product-screen">
-    <Header title="О товаре" action={<button className={'icon-btn ' + (liked ? 'liked' : '')} aria-label={liked ? 'Убрать из избранного' : 'В избранное'} aria-pressed={liked} onClick={() => setLiked(!liked)}><Heart fill={liked ? 'currentColor' : 'none'} /></button>} />
+    <Header title="О товаре" action={<button className={'icon-btn ' + (liked ? 'liked' : '')} aria-label={liked ? 'Убрать из избранного' : 'В избранное'} aria-pressed={liked} onClick={() => toggleFavorite(product.id)}><Heart fill={liked ? 'currentColor' : 'none'} /></button>} />
     <div className="product-hero" style={{ background: product.tone }}><ProductArt product={product} /></div>
-    <div className="content-pad product-copy">{product.badge && <span className="pill">{product.badge}</span>}<h1>{product.name}</h1><p>{product.detail}</p><h2>{money(product.price)}</h2>
+    <div className="content-pad product-copy">{product.badge && <span className="pill">{product.badge}</span>}<h1>{product.name}</h1><p>{product.detail}</p><h2>{unitPrice(product)}</h2>{product.unit === 'kg' && <p>Выберите вес с шагом 0,5 кг. Сумма ориентировочная: фактический вес и итог уточнят при сборке.</p>}
       <div className="fact-grid"><div><b>Состав</b><span>На упаковке</span></div><div><b>Наличие</b><span>{product.available === false ? 'Нужна замена' : 'Уточним при сборке'}</span></div></div>
     </div>
-    <div className="sticky-action">{product.available === false ? <button className="button primary full" onClick={() => { add(product.id); go('cart') }}>Добавить в корзину · нужна замена</button> : count ? <div className="counter large"><button aria-label="Уменьшить" onClick={() => add(product.id, -1)}><Minus /></button><b>{count} в корзине</b><button aria-label="Увеличить" onClick={() => add(product.id)}><Plus /></button></div> : <button className="button primary full" onClick={() => add(product.id)}>Добавить · {money(product.price)}</button>}</div>
+    <div className="sticky-action">{product.available === false ? <button className="button primary full" onClick={() => { add(product.id); go('cart') }}>Добавить в корзину · нужна замена</button> : count ? <div className="counter large"><button aria-label="Уменьшить" onClick={() => add(product.id, -1)}><Minus /></button><b>{quantityLabel(product, count)} в корзине</b><button aria-label="Увеличить" onClick={() => add(product.id)}><Plus /></button></div> : <button className="button primary full" onClick={() => add(product.id)}>Добавить · {money(product.price * (product.unit === 'kg' ? 0.5 : 1))}</button>}</div>
   </div>
 }
 
@@ -374,10 +379,11 @@ function CartScreen({ session, add }: { session: Session; add: (id: string, amou
     <Header title="Корзина" action={items.length ? <button className="text-btn" onClick={() => go('catalog')}>Добавить</button> : null} />
     {!items.length ? <div className="empty-state tall"><ShoppingBasket /><h2>Корзина пока пустая</h2><p>Выберите продукты — адрес и параметры получения уже сохранены.</p><button className="button primary" onClick={() => go('catalog')}>Открыть каталог</button></div> : <div className="content-pad">
       <button className="fulfillment-summary" onClick={() => go('location')}><span>{session.fulfillment === 'delivery' ? <Truck /> : <Store />}</span><span><small>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</small><b>{session.fulfillment === 'delivery' ? session.address : session.store}</b></span><ChevronRight /></button>
-      <div className="cart-list">{items.map(({ product, count }) => <div className="cart-item" key={product.id}><div className="mini-visual" style={{ background: product.tone }}><ProductArt product={product} compact /></div><span><b>{product.name}</b><small>{product.detail}</small><strong>{money(product.price * count)}</strong></span><div className="counter"><button aria-label={`Уменьшить ${product.name}`} onClick={() => add(product.id, -1)}><Minus /></button><b>{count}</b><button aria-label={`Увеличить ${product.name}`} onClick={() => add(product.id)}><Plus /></button></div></div>)}</div>
+      <div className="cart-list">{items.map(({ product, count }) => <div className="cart-item" key={product.id}><div className="mini-visual" style={{ background: product.tone }}><ProductArt product={product} compact /></div><span><b>{product.name}</b><small>{quantityLabel(product, count)} · {unitPrice(product)}</small><strong>{money(product.price * count)}</strong></span><div className="counter"><button aria-label={`Уменьшить ${product.name}`} onClick={() => add(product.id, -1)}><Minus /></button><b>{quantityLabel(product, count)}</b><button aria-label={`Увеличить ${product.name}`} onClick={() => add(product.id)}><Plus /></button></div></div>)}</div>
       {hasMissing && <button className="missing-card" onClick={() => go('substitution')}><CircleAlert /><span><b>Для одной позиции нужна замена</b><small>Выберите вариант до оформления</small></span><ChevronRight /></button>}
       {hasUnavailable && session.substitution && <div className="resolved-card"><Check /><span><b>Правило замены сохранено</b><small>{substitutionCopy}</small></span><button onClick={() => go('substitution')}>Изменить</button></div>}
-      <div className="receipt"><p><span>Товары</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + deliveryCost)}</b></p></div>
+      <div className="receipt"><p><span>Товары</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Ориентировочно</span><b>{money(total + deliveryCost)}</b></p></div>
+      <p className="demo-caption">Цены и доставка демонстрационные. Для весовых товаров итог зависит от фактического веса.</p>
     </div>}
     {items.length > 0 && <div className="sticky-action"><button className="button primary full" disabled={hasMissing} onClick={() => go('checkout')}>{hasMissing ? 'Сначала выберите замену' : `К оформлению · ${money(total + deliveryCost)}`}</button></div>}
   </div>
@@ -421,8 +427,8 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
   const [phone, setPhone] = useState(() => { try { return JSON.parse(sessionStorage.getItem('agro-checkout-contacts') || '{}').phone || readProfile().phone } catch { return readProfile().phone } })
   useEffect(() => sessionStorage.setItem('agro-checkout-contacts', JSON.stringify({ name, phone })), [name, phone])
   const deliveryCost = session.fulfillment === 'delivery' && total < 1500 ? 300 : 0
-  const units = Object.values(session.cart).reduce((a, b) => a + b, 0)
-  const valid = units > 0 && name.trim().length > 1 && phone.replace(/\D/g, '').length >= 11 && isSlotAvailable(session.slotDate, session.slot, now) && Boolean(session.fulfillment === 'delivery' ? validDemoAddress(session.address) : session.storeId)
+  const positions = Object.values(session.cart).filter((count) => count > 0).length
+  const valid = positions > 0 && name.trim().length > 1 && phone.replace(/\D/g, '').length >= 11 && isSlotAvailable(session.slotDate, session.slot, now) && Boolean(session.fulfillment === 'delivery' ? validDemoAddress(session.address) : session.storeId)
   return <div className="screen checkout-screen">
     <Header title="Оформление" />
     <div className="content-pad">
@@ -438,8 +444,8 @@ function CheckoutScreen({ session, update }: { session: Session; update: (p: Par
       <label className="field-label">Способ оплаты</label>
       <div className="payment-choice"><button className={payment === 'card' ? 'selected' : ''} onClick={() => update({ checkoutPayment: 'card' })}><CreditCard /><span><b>Банковская карта</b><small>демонстрационный сценарий</small></span><Check /></button><button className={payment === 'sbp' ? 'selected' : ''} onClick={() => update({ checkoutPayment: 'sbp' })}><WalletCards /><span><b>СБП</b><small>демонстрационный сценарий без QR</small></span><Check /></button></div>
       <button className="checkout-row" onClick={() => go('loyalty')}><span className="row-icon"><BadgePercent /></span><span><small>Программа лояльности</small><b>Карта и правила начисления</b></span><ChevronRight /></button>
-      <section className="checkout-items"><h2>Состав заказа</h2>{items.map(({ product, count }) => <p key={product.id}><span>{product.name} × {count}</span><b>{money(product.price * count)}</b></p>)}{session.cart.cheese > 0 && session.substitution && <small>Если сыра не будет: {session.substitution === 'alt' ? 'заменить на российский молодой' : session.substitution === 'contact' ? 'согласовать замену со мной' : 'убрать из заказа'}. Итоговая стоимость может измениться.</small>}</section>
-      <div className="receipt compact"><p><span>{Object.keys(session.cart).filter((id) => session.cart[id] > 0).length} товара · {units} единиц</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Итого</span><b>{money(total + deliveryCost)}</b></p></div>
+      <section className="checkout-items"><h2>Состав заказа</h2>{items.map(({ product, count }) => <p key={product.id}><span>{product.name} · {quantityLabel(product, count)}</span><b>{money(product.price * count)}</b></p>)}{session.cart.cheese > 0 && session.substitution && <small>Если сыра не будет: {session.substitution === 'alt' ? 'заменить на российский молодой' : session.substitution === 'contact' ? 'согласовать замену со мной' : 'убрать из заказа'}. Итоговая стоимость может измениться.</small>}</section>
+      <div className="receipt compact"><p><span>Товары · {positions} поз.</span><b>{money(total)}</b></p><p><span>{session.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'}</span><b>{deliveryCost ? money(deliveryCost) : '0 ₽'}</b></p><p className="total"><span>Ориентировочно</span><b>{money(total + deliveryCost)}</b></p></div>
     </div>
     <div className="sticky-action"><button className="button primary full" disabled={!valid} onClick={() => {
       const pendingOrder: Omit<OrderRecord, 'createdAt'> = { id: crypto.randomUUID(), cart: { ...session.cart }, fulfillment: session.fulfillment, slotDate: session.slotDate, slot: session.slot, address: session.address, store: session.store, storeId: session.storeId, subtotal: total, deliveryCost, total: total + deliveryCost, payment, contactName: name.trim(), contactPhone: phone.trim(), substitution: session.substitution }
@@ -486,15 +492,15 @@ function RepeatScreen({ orders, update }: { orders: OrderRecord[]; update: (p: P
   const entries = Object.entries(repeat).filter(([id, count]) => count > 0 && products.some((product) => product.id === id))
   const available = entries.filter(([id]) => products.find((product) => product.id === id)?.available !== false).length
   const unavailable = entries.length - available
-  const units = entries.reduce((sum, [, count]) => sum + count, 0)
+  const positions = entries.length
   return <div className="screen">
     <Header title="Повторить покупки" />
     <div className="content-pad">
       <div className="repeat-head"><span><RefreshCcw /></span><div><p className="eyebrow">{selected ? 'История заказов' : 'До первого заказа'}</p><h1>{selected ? 'Повторить выбранный заказ' : 'Как работает повтор корзины'}</h1><p>Посмотрите, какие позиции доступны, а для каких потребуется замена.</p></div></div>
       {orders.length > 1 && <div className="repeat-order-list">{orders.map((order) => <button className={'choice-card ' + (order.id === selected?.id ? 'selected' : '')} key={order.id} onClick={() => setSelectedId(order.id)}><span><b>{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }).format(new Date(order.createdAt))}</b><small>{Object.values(order.cart).reduce((sum, count) => sum + count, 0)} ед. · {order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}</small></span></button>)}</div>}
       {!selected && <div className="context-note"><CircleAlert /><p>После первого заказа здесь появится ваша история. Пока можно посмотреть, как собирается повторная корзина.</p></div>}
-      <div className="comparison"><div><small>В заказе</small><b>{entries.length} позиций · {units} ед.</b></div><ArrowRight /><div><small>Для повтора</small><b>Доступно: {available} · замена: {unavailable}</b></div></div>
-      <div className="cart-list compact-list">{entries.map(([id, count]) => { const p = products.find((x) => x.id === id)!; return <div className="cart-item" key={id}><div className="mini-visual" style={{ background: p.tone }}><ProductArt product={p} compact /></div><span><b>{p.name}</b><small>{count} шт. · {money(p.price * count)}</small></span>{p.available === false ? <em className="warn-label">Нужна замена</em> : <Check className="available-check" />}</div> })}</div>
+      <div className="comparison"><div><small>В заказе</small><b>{positions} позиций</b></div><ArrowRight /><div><small>Для повтора</small><b>Доступно: {available} · замена: {unavailable}</b></div></div>
+      <div className="cart-list compact-list">{entries.map(([id, count]) => { const p = products.find((x) => x.id === id)!; return <div className="cart-item" key={id}><div className="mini-visual" style={{ background: p.tone }}><ProductArt product={p} compact /></div><span><b>{p.name}</b><small>{quantityLabel(p, count)} · {money(p.price * count)}</small></span>{p.available === false ? <em className="warn-label">Нужна замена</em> : <Check className="available-check" />}</div> })}</div>
       <div className="context-note"><MapPin /><p>Актуальность цены и наличия зависит от данных выбранного магазина.</p></div>
     </div>
     <div className="sticky-action"><button className="button primary full" onClick={() => { update({ cart: repeat, substitution: null }); go(unavailable ? 'substitution' : 'cart') }}>Добавить и проверить наличие</button></div>
@@ -531,7 +537,7 @@ function ShoppingListScreen({ session, update }: { session: Session; update: (p:
       <button className="text-btn list-clear" disabled={!session.listDone.length} onClick={() => update({ listDone: [] })}>Снять отметки «Куплено»</button>
       <button className="store-mode-card" onClick={() => go('location?mode=pickup&returnTo=shopping-list')}><Store /><span><b>Открыть режим магазина</b><small>Выбрать точку и вернуться к списку</small></span><ChevronRight /></button>
     </div>
-    <div className="sticky-action"><button className="button primary full" disabled={!available.length} onClick={() => { update({ cart: available.reduce((cart, product) => ({ ...cart, [product.id]: Math.max(1, cart[product.id] || 0) }), { ...session.cart }) }); go('cart') }}>Добавить из списка в корзину ({available.length})</button></div>
+    <div className="sticky-action"><button className="button primary full" disabled={!available.length} onClick={() => { update({ cart: available.reduce((cart, product) => ({ ...cart, [product.id]: Math.max(product.unit === 'kg' ? 0.5 : 1, cart[product.id] || 0) }), { ...session.cart }) }); go('cart') }}>Добавить из списка в корзину ({available.length})</button></div>
   </div>
 }
 
@@ -546,15 +552,15 @@ function LoyaltyScreen() {
   </div>
 }
 
-function OffersScreen({ add }: { add: (id: string, amount?: number) => void }) {
+function OffersScreen({ session, add }: { session: Session; add: (id: string, amount?: number) => void }) {
   return <div className="screen offers-screen"><Header title="Подборка" />
     <div className="content-pad"><div className="offer-banner"><span>Из каталога</span><h1>Продукты на каждый день</h1><p>Молоко, хлеб и готовые блюда можно положить в корзину сразу.</p></div><SectionTitle title="Можно добавить" />
-      <div className="catalog-grid">{products.slice(0, 4).map((p) => <ProductCard key={p.id} product={p} add={add} />)}</div>
+      <div className="catalog-grid">{products.slice(0, 4).map((p) => <ProductCard key={p.id} product={p} count={session.cart[p.id] || 0} add={add} />)}</div>
     </div>
   </div>
 }
 
-function ProfileScreen() {
+function ProfileScreen({ favorites }: { favorites: string[] }) {
   const [profile, setProfile] = useState(readProfile)
   const [name, setName] = useState(profile.name || '')
   const [phone, setPhone] = useState(profile.phone || '')
@@ -563,6 +569,7 @@ function ProfileScreen() {
     <div className="content-pad"><div className="profile-card"><span><UserRound /></span><div><p className="eyebrow">Профиль</p><h1>{profile.name || 'Контакты не указаны'}</h1><p>{profile.phone || 'Сохраните имя и телефон для будущих заказов'}</p></div></div>
       <form className="profile-edit" onSubmit={(event) => { event.preventDefault(); if (valid) { const value = { name: name.trim(), phone: phone.trim() }; localStorage.setItem('agro-demo-profile', JSON.stringify(value)); setProfile(value) } }}><label>Имя<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ваше имя" /></label><label>Телефон<input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" placeholder="+7 900 000-00-00" /></label><button className="button primary" disabled={!valid}>Сохранить контакты</button></form>
       <button className="menu-row" onClick={() => go('repeat')}><RefreshCcw /><span><b>История и повторы</b><small>Собрать прошлую корзину заново</small></span><ChevronRight /></button>
+      <button className="menu-row" onClick={() => go('catalog?favorites')}><Heart /><span><b>Избранное</b><small>{favorites.length ? `Сохранено товаров: ${favorites.length}` : 'Пока нет товаров'}</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('shopping-list')}><ListChecks /><span><b>Списки покупок</b><small>Для онлайн-заказа и магазина</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('loyalty')}><Barcode /><span><b>Бонусная программа</b><small>Правила и официальный сервис</small></span><ChevronRight /></button>
       <button className="menu-row" onClick={() => go('location')}><MapPin /><span><b>Адреса и магазины</b><small>Контекст цен и наличия</small></span><ChevronRight /></button>
